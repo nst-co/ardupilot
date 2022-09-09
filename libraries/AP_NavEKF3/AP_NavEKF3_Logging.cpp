@@ -370,6 +370,8 @@ void NavEKF3_core::Log_Write(uint64_t time_us)
         return;
     }
     Log_Write_XKF4(time_us);
+    Log_Write_XKF1(time_us);
+    return;
     if (level == NavEKF3::LogLevel::XKF4) {  // only log XKF4 scaled innovations
         return;
     }

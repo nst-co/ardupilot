@@ -83,6 +83,15 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("JERK", 10, AR_WPNav, _jerk_max, 0),
 
+    // @Param: RADIUS_LAST
+    // @DisplayName: Last waypoint radius
+    // @Description: The final distance in meters from a waypoint when we consider the waypoint has been reached.
+    // @Units: m
+    // @Range: 0 100
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("RADIUS_LAST", 11, AR_WPNav, _radius_last, AR_WPNAV_RADIUS_DEFAULT),
+
     AP_GROUPEND
 };
 
@@ -454,7 +463,13 @@ void AR_WPNav::advance_wp_target_along_track(const Location &current_loc, float 
             _reached_destination = true;
         } else {
             // regular waypoints also require the vehicle to be within the waypoint radius or past the "finish line"
-            const bool near_wp = current_loc.get_distance(_destination) <= _radius;
+            //const bool near_wp = current_loc.get_distance(_destination) <= _radius;
+            if(_destination.isLastDestination){
+                _radiusTmp = _radius_last;
+            }else{
+                _radiusTmp = _radius;
+            }
+            const bool near_wp = _distance_to_destination <= _radiusTmp;
             const bool past_wp = current_loc.past_interval_finish_line(_origin, _destination);
             _reached_destination = near_wp || past_wp;
         }

@@ -268,6 +268,10 @@ bool AP_MotorsUGV::have_skid_steering() const
 {
     if (SRV_Channels::function_assigned(SRV_Channel::k_throttleLeft) &&
         SRV_Channels::function_assigned(SRV_Channel::k_throttleRight)) {
+        if (SRV_Channels::function_assigned(SRV_Channel::k_steering)) {
+            // regular + drive force distribution
+            return false;
+        }
         return true;
     }
     return false;
@@ -463,6 +467,12 @@ bool AP_MotorsUGV::pre_arm_check(bool report) const
     }
     // check if only one of throttle or steering outputs has been configured, if has a sail allow no throttle
     if ((has_sail() || SRV_Channels::function_assigned(SRV_Channel::k_throttle)) != SRV_Channels::function_assigned(SRV_Channel::k_steering)) {
+        if (SRV_Channels::function_assigned(SRV_Channel::k_steering) &&
+            SRV_Channels::function_assigned(SRV_Channel::k_throttleLeft) &&
+            SRV_Channels::function_assigned(SRV_Channel::k_throttleRight)) {
+            // regular + drive force distribution
+            return true;
+        }
         if (report) {
             gcs().send_text(MAV_SEVERITY_CRITICAL, "PreArm: check steering and throttle config");
         }
@@ -691,6 +701,19 @@ void AP_MotorsUGV::output_regular(bool armed, float ground_speed, float steering
         } else {
             SRV_Channels::set_output_limit(SRV_Channel::k_throttle, SRV_Channel::Limit::TRIM);
         }
+
+        if (!have_skid_steering() &&
+            SRV_Channels::function_assigned(SRV_Channel::k_throttleLeft) &&
+            SRV_Channels::function_assigned(SRV_Channel::k_throttleRight)) {
+            // regular + drive force distribution
+            if (_disarm_disable_pwm) {
+                SRV_Channels::set_output_limit(SRV_Channel::k_throttleLeft, SRV_Channel::Limit::ZERO_PWM);
+                SRV_Channels::set_output_limit(SRV_Channel::k_throttleRight, SRV_Channel::Limit::ZERO_PWM);
+            } else {
+                SRV_Channels::set_output_limit(SRV_Channel::k_throttleLeft, SRV_Channel::Limit::TRIM);
+                SRV_Channels::set_output_limit(SRV_Channel::k_throttleRight, SRV_Channel::Limit::TRIM);
+            }
+        }
     }
 
     // clear and set limits based on input
@@ -702,6 +725,39 @@ void AP_MotorsUGV::output_regular(bool armed, float ground_speed, float steering
 
     // always allow steering to move
     SRV_Channels::set_output_scaled(SRV_Channel::k_steering, steering);
+
+    // regular + drive force distribution thrust handling
+    if( armed &&
+        !have_skid_steering() &&
+        SRV_Channels::function_assigned(SRV_Channel::k_throttleLeft) &&
+        SRV_Channels::function_assigned(SRV_Channel::k_throttleRight)) {
+        float throttle_rateLeft = 1.0f;
+        float throttle_rateRight = 1.0f;
+        if (fabsf(steering) > 90.0f) { // Output adjustment for turn angles exceeding 2%
+            const float wheelBase = 0.6f;
+            const float tread = 0.6f;
+            const float max_angle_outside = constrain_float(_steering_throttle_mix, 0.3f, 0.5f);
+            const float theta = (steering / 4500.0f) * max_angle_outside;
+            const float rearCenterTurningRadius = wheelBase / tanf(theta) - tread / 2.0f;
+            const float diffRate = tread / 2.0f / fabsf(rearCenterTurningRadius);
+            if (is_negative(steering)) {
+                throttle_rateLeft = 1.0f - diffRate;
+                throttle_rateRight = 1.0f + diffRate;
+            } else {
+                throttle_rateLeft = 1.0f + diffRate;
+                throttle_rateRight = 1.0f - diffRate;
+            }
+            // check for saturation and scale back throttle proportionally
+            float throttle_scaled = throttle / 100.0f;  // throttle scaled -1 to +1
+            const float saturation_value = fabsf(throttle_scaled) * (1.0f + diffRate);
+            if (saturation_value > 1.0f) {
+                const float fair_scaler = 1.0f / saturation_value;
+                throttle *= fair_scaler;
+            }
+        }
+        output_throttle(SRV_Channel::k_throttleLeft, throttle * throttle_rateLeft);
+        output_throttle(SRV_Channel::k_throttleRight, throttle * throttle_rateRight);
+    }
 }
 
 // output to skid steering channels

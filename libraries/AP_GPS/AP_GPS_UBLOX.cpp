@@ -83,7 +83,7 @@ AP_GPS_UBLOX::AP_GPS_UBLOX(AP_GPS &_gps, AP_GPS::GPS_State &_state, AP_HAL::UART
     _next_message(STEP_PVT),
     _ublox_port(255),
     _unconfigured_messages(CONFIG_ALL),
-    _hardware_generation(UBLOX_UNKNOWN_HARDWARE_GENERATION),
+    _hardware_generation(UBLOX_F9),
     next_fix(AP_GPS::NO_FIX),
     noReceivedHdop(true),
     role(_role)

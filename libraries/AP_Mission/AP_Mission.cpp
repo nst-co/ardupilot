@@ -731,6 +731,7 @@ bool AP_Mission::read_cmd_from_storage(uint16_t index, Mission_Command& cmd) con
         cmd.content.location.terrain_alt = packed_content.location.flags.terrain_alt;
         cmd.content.location.origin_alt = packed_content.location.flags.origin_alt;
         cmd.content.location.loiter_xtrack = packed_content.location.flags.loiter_xtrack;
+        cmd.content.location.isLastDestination = (index + 1 >= (unsigned)_cmd_total);
         cmd.content.location.alt = packed_content.location.alt;
         cmd.content.location.lat = packed_content.location.lat;
         cmd.content.location.lng = packed_content.location.lng;

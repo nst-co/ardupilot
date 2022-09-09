@@ -377,7 +377,8 @@ bool Util::get_system_id(char buf[40])
     uint8_t serialid[12];
     char board_name[14];
 
-    memcpy(serialid, (const void *)UDID_START, 12);
+    //memcpy(serialid, (const void *)UDID_START, 12);
+    for (int i=0; i<12; i++) serialid[i] = *((uint8_t *)UDID_START + i);
     strncpy(board_name, CHIBIOS_SHORT_BOARD_NAME, 13);
     board_name[13] = 0;
 

@@ -119,10 +119,16 @@ void GCS_MAVLINK_Rover::send_nav_controller_output() const
 
 void GCS_MAVLINK_Rover::send_servo_out()
 {
-    float motor1, motor3;
+    float motor1, motor3, motor4;
+    motor4 = 0.0f;
     if (rover.g2.motors.have_skid_steering()) {
         motor1 = 10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_throttleLeft) / 1000.0f);
         motor3 = 10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_throttleRight) / 1000.0f);
+    } else if (SRV_Channels::function_assigned(SRV_Channel::k_throttleLeft)) {
+        // regular + drive force distribution
+        motor1 = 10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_steering) / 4500.0f);
+        motor3 = 10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_throttleLeft) / 1000.0f);
+        motor4 = 10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_throttleRight) / 1000.0f);
     } else {
         motor1 = 10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_steering) / 4500.0f);
         motor3 = 10000 * (SRV_Channels::get_output_scaled(SRV_Channel::k_throttle) / 100.0f);
@@ -134,7 +140,7 @@ void GCS_MAVLINK_Rover::send_servo_out()
         motor1,
         0,
         motor3,
-        0,
+        motor4,
         0,
         0,
         0,

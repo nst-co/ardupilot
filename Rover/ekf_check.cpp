@@ -33,7 +33,8 @@ void Rover::ekf_check()
     }
 
     // return immediately if motors are not armed, or ekf check is disabled
-    if (!arming.is_armed() || (g.fs_ekf_thresh <= 0.0f)) {
+    if (!arming.is_armed() || (g.fs_ekf_thresh <= 0.0f)
+            || !control_mode->requires_position()) {
         ekf_check_state.fail_count = 0;
         ekf_check_state.bad_variance = false;
         AP_Notify::flags.ekf_bad = ekf_check_state.bad_variance;
