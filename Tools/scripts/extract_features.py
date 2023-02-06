@@ -5,8 +5,7 @@ script to determine what features have been built into an ArduPilot binary
 
 AP_FLAKE8_CLEAN
 """
-
-import optparse
+import argparse
 import os
 import re
 import string
@@ -24,9 +23,9 @@ else:
 
 class ExtractFeatures(object):
 
-    def __init__(self, filename):
+    def __init__(self, filename, nm="arm-none-eabi-nm"):
         self.filename = filename
-        self.nm = 'arm-none-eabi-nm'
+        self.nm = nm
 
         # feature_name should match the equivalent feature in
         # build_options.py ('FEATURE_NAME', 'EXPECTED_SYMBOL').
@@ -105,34 +104,38 @@ class ExtractFeatures(object):
             ('AP_ICENGINE_ENABLED', 'AP_ICEngine::AP_ICEngine',),
             ('HAL_EFI_ENABLED', 'AP_RPM_EFI::AP_RPM_EFI',),
             ('HAL_EFI_NWPWU_ENABLED', r'AP_EFI_NWPMU::update\b',),
+            ('HAL_EFI_CURRAWONG_ECU_ENABLED', r'AP_EFI_Currawong_ECU::update\b',),
             ('HAL_GENERATOR_ENABLED', 'AP_Generator::AP_Generator',),
+            ('AP_GENERATOR_{type}_ENABLED', r'AP_Generator_(?P<type>.*)::update',),
 
             ('OSD_ENABLED', 'AP_OSD::AP_OSD',),
             ('HAL_PLUSCODE_ENABLE', 'AP_OSD_Screen::draw_pluscode',),
             ('OSD_PARAM_ENABLED', 'AP_OSD_ParamScreen::AP_OSD_ParamScreen',),
             ('HAL_OSD_SIDEBAR_ENABLE', 'AP_OSD_Screen::draw_sidebars',),
 
-            ('HAL_SMARTAUDIO_ENABLED', 'AP_SmartAudio::AP_SmartAudio',),
+            ('AP_SMARTAUDIO_ENABLED', 'AP_SmartAudio::AP_SmartAudio',),
             ('AP_TRAMP_ENABLED', 'AP_Tramp::AP_Tramp',),
 
             ('HAL_QUADPLANE_ENABLED', 'QuadPlane::QuadPlane',),
+            ('QAUTOTUNE_ENABLED', 'ModeQAutotune::_enter',),
             ('HAL_SOARING_ENABLED', 'SoaringController::var_info',),
             ('HAL_LANDING_DEEPSTALL_ENABLED', r'AP_Landing_Deepstall::terminate\b',),
 
-            ('GRIPPER_ENABLED', r'AP_Gripper::init\b',),
+            ('AP_GRIPPER_ENABLED', r'AP_Gripper::init\b',),
             ('HAL_SPRAYER_ENABLED', 'AC_Sprayer::AC_Sprayer',),
-            ('LANDING_GEAR_ENABLED', r'AP_LandingGear::init\b',),
+            ('AP_LANDINGGEAR_ENABLED', r'AP_LandingGear::init\b',),
             ('WINCH_ENABLED', 'AP_Winch::AP_Winch',),
 
             ('AP_VOLZ_ENABLED', r'AP_Volz_Protocol::init\b',),
             ('AP_ROBOTISSERVO_ENABLED', r'AP_RobotisServo::init\b',),
             ('AP_FETTEC_ONEWIRE_ENABLED', r'AP_FETtecOneWire::init\b',),
 
-            ('RPM_ENABLED', 'AP_RPM::AP_RPM',),
+            ('AP_RPM_ENABLED', 'AP_RPM::AP_RPM',),
 
             ('GPS_MOVING_BASELINE', r'AP_GPS_Backend::calculate_moving_base_yaw\b',),
 
             ('HAL_WITH_DSP', r'AP_HAL::DSP::find_peaks\b',),
+            ('HAL_GYROFFT_ENABLED', r'AP_GyroFFT::AP_GyroFFT\b',),
             ('HAL_DISPLAY_ENABLED', r'Display::init\b',),
             ('HAL_NMEA_OUTPUT_ENABLED', r'AP_NMEA_Output::update\b',),
             ('HAL_BARO_WIND_COMP_ENABLED', r'AP_Baro::wind_pressure_correction\b',),
@@ -141,17 +144,21 @@ class ExtractFeatures(object):
             ('EK3_FEATURE_EXTERNAL_NAV', r'NavEKF3::writeExtNavVelData'),
         ]
 
-    def progress(self, string):
-        '''pretty-print progress'''
-        print("EF: %s" % string)
+    def progress(self, msg):
+        """Pretty-print progress."""
+        print("EF: %s" % msg)
 
     def run_program(self, prefix, cmd_list, show_output=True, env=None):
-        '''swiped from build_binaries.py'''
+        """Swiped from build_binaries.py."""
         if show_output:
             self.progress("Running (%s)" % " ".join(cmd_list))
-        p = subprocess.Popen(cmd_list, bufsize=1, stdin=None,
-                             stdout=subprocess.PIPE, close_fds=True,
-                             stderr=subprocess.STDOUT, env=env)
+        p = subprocess.Popen(
+            cmd_list,
+            stdin=None,
+            stdout=subprocess.PIPE,
+            close_fds=True,
+            stderr=subprocess.STDOUT,
+            env=env)
         output = ""
         while True:
             x = p.stdout.readline()
@@ -164,7 +171,7 @@ class ExtractFeatures(object):
                 continue
             if running_python3:
                 x = bytearray(x)
-                x = filter(lambda x : chr(x) in string.printable, x)
+                x = filter(lambda x: chr(x) in string.printable, x)
                 x = "".join([chr(c) for c in x])
             output += x
             x = x.rstrip()
@@ -208,7 +215,7 @@ class ExtractFeatures(object):
             return some_dict
 
     def extract_symbols_from_elf(self, filename):
-        '''parses ELF in filename, returns dict of symbols=>attributes'''
+        """Parses ELF in filename, returns dict of symbols=>attributes."""
         text_output = self.run_program('EF', [
             self.nm,
             '--demangle',
@@ -281,15 +288,11 @@ class ExtractFeatures(object):
 
 if __name__ == '__main__':
 
-    parser = optparse.OptionParser("extract_features.py FILENAME")
+    parser = argparse.ArgumentParser(prog='extract_features.py', description='Extract ArduPilot features from binaries')
+    parser.add_argument('firmware_file', help='firmware binary')
+    parser.add_argument('-nm', type=str, default="arm-none-eabi-nm", help='nm binary to use.')
+    args = parser.parse_args()
+    print(args.firmware_file, args.nm)
 
-    cmd_opts, cmd_args = parser.parse_args()
-
-    if len(cmd_args) < 1:
-        parser.print_help()
-        sys.exit(1)
-
-    filename = cmd_args[0]
-
-    ef = ExtractFeatures(filename)
+    ef = ExtractFeatures(args.firmware_file, args.nm)
     ef.run()

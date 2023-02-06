@@ -26,6 +26,7 @@
 #include "AP_Proximity_SITL.h"
 #include "AP_Proximity_AirSimSITL.h"
 #include "AP_Proximity_Cygbot_D1.h"
+#include "AP_Proximity_DroneCAN.h"
 
 #include <AP_Logger/AP_Logger.h>
 
@@ -64,6 +65,14 @@ const AP_Param::GroupInfo AP_Proximity::var_info[] = {
 
     // 19 was _MIN
     // 20 was _MAX
+
+    // @Param{Copter}: _ALT_MIN
+    // @DisplayName: Proximity lowest altitude.
+    // @Description: Minimum altitude below which proximity should not work.
+    // @Units: m
+    // @Range: 0 10
+    // @User: Advanced
+    AP_GROUPINFO_FRAME("_ALT_MIN", 25, AP_Proximity, _alt_min, 1.0f, AP_PARAM_FRAME_COPTER | AP_PARAM_FRAME_HELI | AP_PARAM_FRAME_TRICOPTER),
 
     // @Group: 1
     // @Path: AP_Proximity_Params.cpp
@@ -171,7 +180,11 @@ void AP_Proximity::init()
             drivers[instance] = new AP_Proximity_Cygbot_D1(*this, state[instance], params[instance], serial_instance);
             serial_instance++;
         }
+            break;
 # endif
+
+        case  Type::DroneCAN:
+            num_instances = instance+1;
         break;
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
@@ -344,6 +357,12 @@ uint8_t AP_Proximity::get_object_count() const
 bool AP_Proximity::get_object_angle_and_distance(uint8_t object_number, float& angle_deg, float &distance) const
 {
     return boundary.get_horizontal_object_angle_and_distance(object_number, angle_deg, distance);
+}
+
+// get obstacle pitch and angle for a particular obstacle num
+bool AP_Proximity::get_obstacle_info(uint8_t obstacle_num, float &angle_deg, float &pitch, float &distance) const
+{
+    return boundary.get_obstacle_info(obstacle_num, angle_deg, pitch, distance);
 }
 
 // handle mavlink messages

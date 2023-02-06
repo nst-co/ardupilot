@@ -185,10 +185,6 @@ bool AP_Arming_Plane::quadplane_checks(bool display_failure)
         check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Bad parameter: %s", failure_msg);
         ret = false;
     }
-    if (!plane.quadplane.motors->check_mot_pwm_params()) {
-        check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Check Q_M_PWM_MIN/MAX");
-        ret = false;
-    }
 
     if (plane.quadplane.option_is_set(QuadPlane::OPTION::ONLY_ARM_IN_QMODE_OR_AUTO)) {
         if (!plane.control_mode->is_vtol_mode() && (plane.control_mode != &plane.mode_auto) && (plane.control_mode != &plane.mode_guided)) {
@@ -233,8 +229,7 @@ bool AP_Arming_Plane::ins_checks(bool display_failure)
     }
 
     // additional plane specific checks
-    if ((checks_to_perform & ARMING_CHECK_ALL) ||
-        (checks_to_perform & ARMING_CHECK_INS)) {
+    if (check_enabled(ARMING_CHECK_INS)) {
         char failure_msg[50] = {};
         if (!AP::ahrs().pre_arm_check(true, failure_msg, sizeof(failure_msg))) {
             check_failed(ARMING_CHECK_INS, display_failure, "AHRS: %s", failure_msg);
