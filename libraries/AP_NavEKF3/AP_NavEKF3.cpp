@@ -791,7 +791,7 @@ bool NavEKF3::InitialiseFilter(void)
         num_cores = 0;
 
         // count IMUs from mask
-        for (uint8_t i=0; i<MAX_EKF_CORES; i++) {
+        for (uint8_t i=0; i<INS_MAX_INSTANCES; i++) {
             if (_imuMask & (1U<<i)) {
                 coreSetupRequired[num_cores] = true;
                 coreImuIndex[num_cores] = i;
@@ -803,6 +803,7 @@ bool NavEKF3::InitialiseFilter(void)
         if (AP::dal().available_memory() < sizeof(NavEKF3_core)*num_cores + 4096) {
             GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "EKF3 not enough memory");
             _enable.set(0);
+            num_cores = 0;
             return false;
         }
 
@@ -810,6 +811,7 @@ bool NavEKF3::InitialiseFilter(void)
         core = (NavEKF3_core*)AP::dal().malloc_type(sizeof(NavEKF3_core)*num_cores, AP::dal().MEM_FAST);
         if (core == nullptr) {
             _enable.set(0);
+            num_cores = 0;
             GCS_SEND_TEXT(MAV_SEVERITY_CRITICAL, "EKF3 allocation failed");
             return false;
         }

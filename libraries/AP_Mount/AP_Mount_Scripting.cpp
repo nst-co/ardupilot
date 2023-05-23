@@ -136,47 +136,6 @@ bool AP_Mount_Scripting::healthy() const
     return (AP_HAL::millis() - last_update_ms <= AP_MOUNT_SCRIPTING_TIMEOUT_MS);
 }
 
-// take a picture.  returns true on success
-bool AP_Mount_Scripting::take_picture()
-{
-    picture_count++;
-    recording_video = false;
-    return true;
-}
-
-// start or stop video recording.  returns true on success
-// set start_recording = true to start record, false to stop recording
-bool AP_Mount_Scripting::record_video(bool start_recording)
-{
-    recording_video = start_recording;
-    return true;
-}
-
-// set camera zoom step.  returns true on success
-// zoom out = -1, hold = 0, zoom in = 1
-bool AP_Mount_Scripting::set_zoom_step(int8_t zoom_step)
-{
-    manual_zoom_step = zoom_step;
-    return true;
-}
-
-// set focus in, out or hold.  returns true on success
-// focus in = -1, focus hold = 0, focus out = 1
-bool AP_Mount_Scripting::set_manual_focus_step(int8_t focus_step)
-{
-    manual_focus_step = focus_step;
-    auto_focus_active = false;
-    return true;
-}
-
-// auto focus.  returns true on success
-bool AP_Mount_Scripting::set_auto_focus()
-{
-    manual_focus_step = 0;
-    auto_focus_active = true;
-    return true;
-}
-
 // accessors for scripting backends
 bool AP_Mount_Scripting::get_rate_target(float& roll_degs, float& pitch_degs, float& yaw_degs, bool& yaw_is_earth_frame)
 {

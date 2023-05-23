@@ -76,7 +76,11 @@
 
 #ifndef HAL_BRD_OPTIONS_DEFAULT
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS && !APM_BUILD_TYPE(APM_BUILD_UNKNOWN) && !APM_BUILD_TYPE(APM_BUILD_Replay)
+#ifdef HAL_DEBUG_BUILD
+#define HAL_BRD_OPTIONS_DEFAULT BOARD_OPTION_WATCHDOG | BOARD_OPTION_DEBUG_ENABLE
+#else
 #define HAL_BRD_OPTIONS_DEFAULT BOARD_OPTION_WATCHDOG
+#endif
 #else
 #define HAL_BRD_OPTIONS_DEFAULT 0
 #endif
@@ -194,7 +198,7 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
 #if HAL_HAVE_IMU_HEATER
     // @Param: HEAT_TARG
     // @DisplayName: Board heater temperature target
-    // @Description: Board heater target temperature for boards with controllable heating units. DO NOT SET to -1 on the Cube. Set to -1 to disable the heater, please reboot after setting to -1.
+    // @Description: Board heater target temperature for boards with controllable heating units. Set to -1 to disable the heater, please reboot after setting to -1.
     // @Range: -1 80
     // @Units: degC
     // @User: Advanced
@@ -283,7 +287,7 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @Param: OPTIONS
     // @DisplayName: Board options
     // @Description: Board specific option flags
-    // @Bitmask: 0:Enable hardware watchdog, 1:Disable MAVftp, 2:Enable set of internal parameters, 3:Enable Debug Pins, 4:Unlock flash on reboot, 5:Write protect firmware flash on reboot, 6:Write protect bootloader flash on reboot
+    // @Bitmask: 0:Enable hardware watchdog, 1:Disable MAVftp, 2:Enable set of internal parameters, 3:Enable Debug Pins, 4:Unlock flash on reboot, 5:Write protect firmware flash on reboot, 6:Write protect bootloader flash on reboot, 7:Skip board validation
     // @User: Advanced
     AP_GROUPINFO("OPTIONS", 19, AP_BoardConfig, _options, HAL_BRD_OPTIONS_DEFAULT),
 
@@ -340,6 +344,16 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     AP_GROUPINFO("HEAT_LOWMGN", 23, AP_BoardConfig, heater.imu_arming_temperature_margin_low, HAL_IMU_TEMP_MARGIN_LOW_DEFAULT),
 #endif
 
+#if AP_SDCARD_STORAGE_ENABLED
+    // @Param: SD_MISSION
+    // @DisplayName:  SDCard Mission size
+    // @Description: This sets the amount of storage in kilobytes reserved on the microsd card in mission.stg for waypoint storage. Each waypoint uses 15 bytes.
+    // @Range: 0 64
+    // @RebootRequired: True
+    // @User: Advanced
+    AP_GROUPINFO("SD_MISSION", 24, AP_BoardConfig, sdcard_storage.mission_kb, 0),
+#endif
+    
     AP_GROUPEND
 };
 
