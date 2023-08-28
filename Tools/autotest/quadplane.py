@@ -388,17 +388,20 @@ class AutoTestQuadPlane(AutoTest):
             break
         self.wait_disarmed()
 
-    def takeoff(self, height, mode):
+    def takeoff(self, height, mode, timeout=30):
         """climb to specified height and set throttle to 1500"""
         self.set_current_waypoint(0, check_afterwards=False)
         self.change_mode(mode)
         self.wait_ready_to_arm()
         self.arm_vehicle()
+        if mode == 'GUIDED':
+            self.user_takeoff(alt_min=height, timeout=timeout)
+            return
         self.set_rc(3, 1800)
         self.wait_altitude(height,
                            height+5,
                            relative=True,
-                           timeout=30)
+                           timeout=timeout)
         self.set_rc(3, 1500)
 
     def do_RTL(self):
@@ -894,6 +897,19 @@ class AutoTestQuadPlane(AutoTest):
         self.reset_SITL_commandline()
         self.context_pop()
 
+    def GUIDEDToAUTO(self):
+        '''Test using GUIDED mode for takeoff before shifting to auto'''
+        self.load_mission("mission.txt")
+        self.takeoff(30, mode='GUIDED')
+
+        # extra checks would go here
+        self.assert_not_receiving_message('CAMERA_FEEDBACK')
+
+        self.change_mode('AUTO')
+        self.wait_current_waypoint(3)
+        self.change_mode('QRTL')
+        self.wait_disarmed(timeout=240)
+
     def Tailsitter(self):
         '''tailsitter test'''
         self.set_parameter('Q_FRAME_CLASS', 10)
@@ -916,19 +932,24 @@ class AutoTestQuadPlane(AutoTest):
                 raise NotAchievedException("Changed throttle output on mode change to QHOVER")
         self.disarm_vehicle()
 
-    def ICEngine(self):
-        '''Test ICE Engine support'''
-        rc_engine_start_chan = 11
+    def setup_ICEngine_vehicle(self, start_chan):
+        '''restarts SITL with an IC Engine setup'''
         self.set_parameters({
-            'ICE_START_CHAN': rc_engine_start_chan,
+            'ICE_START_CHAN': start_chan,
         })
-        model = "quadplane-ice"
 
+        model = "quadplane-ice"
         self.customise_SITL_commandline(
             [],
             model=model,
             defaults_filepath=self.model_defaults_filepath(model),
-            wipe=False)
+            wipe=False,
+        )
+
+    def ICEngine(self):
+        '''Test ICE Engine support'''
+        rc_engine_start_chan = 11
+        self.setup_ICEngine_vehicle(start_chan=rc_engine_start_chan)
 
         self.wait_ready_to_arm()
         self.wait_rpm(1, 0, 0, minimum_duration=1)
@@ -946,7 +967,7 @@ class AutoTestQuadPlane(AutoTest):
         self.wait_rpm(1, 6500, 7500, minimum_duration=30, timeout=40)
         self.progress("Setting min-throttle")
         self.set_rc(3, 1000)
-        self.wait_rpm(1, 300, 400, minimum_duration=1)
+        self.wait_rpm(1, 65, 75, minimum_duration=1)
         self.progress("Setting engine-start RC switch to LOW")
         self.set_rc(rc_engine_start_chan, 1000)
         self.wait_rpm(1, 0, 0, minimum_duration=1)
@@ -967,18 +988,8 @@ class AutoTestQuadPlane(AutoTest):
     def ICEngineMission(self):
         '''Test ICE Engine Mission support'''
         rc_engine_start_chan = 11
-        self.set_parameters({
-            'ICE_START_CHAN': rc_engine_start_chan,
-        })
-        model = "quadplane-ice"
+        self.setup_ICEngine_vehicle(start_chan=rc_engine_start_chan)
 
-        self.customise_SITL_commandline(
-            [],
-            model=model,
-            defaults_filepath=self.model_defaults_filepath(model),
-            wipe=False)
-
-        self.reboot_sitl()
         self.load_mission("mission.txt")
         self.wait_ready_to_arm()
         self.set_rc(rc_engine_start_chan, 2000)
@@ -1227,6 +1238,7 @@ class AutoTestQuadPlane(AutoTest):
             self.ICEngine,
             self.ICEngineMission,
             self.MidAirDisarmDisallowed,
+            self.GUIDEDToAUTO,
             self.BootInAUTO,
             self.Ship,
             self.MAV_CMD_NAV_LOITER_TO_ALT,

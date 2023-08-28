@@ -11,6 +11,8 @@ public:
 
     using GCS_MAVLINK::GCS_MAVLINK;
 
+    uint8_t sysid_my_gcs() const override;
+
 protected:
 
     uint32_t telem_delay() const override;
@@ -19,12 +21,11 @@ protected:
     void handle_mission_set_current(AP_Mission &mission, const mavlink_message_t &msg) override;
 #endif
 
-    uint8_t sysid_my_gcs() const override;
     bool sysid_enforce() const override;
 
     MAV_RESULT handle_command_preflight_calibration(const mavlink_command_long_t &packet, const mavlink_message_t &msg) override;
-    MAV_RESULT handle_command_int_packet(const mavlink_command_int_t &packet) override;
-    MAV_RESULT handle_command_long_packet(const mavlink_command_long_t &packet) override;
+    MAV_RESULT handle_command_int_packet(const mavlink_command_int_t &packet, const mavlink_message_t &msg) override;
+    MAV_RESULT handle_command_long_packet(const mavlink_command_long_t &packet, const mavlink_message_t &msg) override;
     MAV_RESULT handle_command_do_set_mission_current(const mavlink_command_long_t &packet) override;
 
     void send_position_target_global_int() override;

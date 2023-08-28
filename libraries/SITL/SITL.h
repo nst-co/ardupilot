@@ -218,6 +218,7 @@ public:
     AP_Int8  rc_fail;     // fail RC input
     AP_Int8  rc_chancount; // channel count
     AP_Int8  float_exception; // enable floating point exception checks
+    AP_Int32 can_servo_mask; // mask of servos/escs coming from CAN
     AP_Int8  flow_enable; // enable simulated optflow
     AP_Int16 flow_rate; // optflow data rate (Hz)
     AP_Int8  flow_delay; // optflow data delay
@@ -391,19 +392,6 @@ public:
         AP_Float alt; // metres
         AP_Float hdg; // 0 to 360
     } opos;
-
-    AP_Int8 _safety_switch_state;
-
-    AP_HAL::Util::safety_state safety_switch_state() const {
-        return (AP_HAL::Util::safety_state)_safety_switch_state.get();
-    }
-    void force_safety_off() {
-        _safety_switch_state.set((uint8_t)AP_HAL::Util::SAFETY_ARMED);
-    }
-    bool force_safety_on() {
-        _safety_switch_state.set((uint8_t)AP_HAL::Util::SAFETY_DISARMED);
-        return true;
-    }
 
     uint16_t irlock_port;
 

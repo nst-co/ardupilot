@@ -57,6 +57,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: _
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: _
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[0], "_", 41, AP_BattMonitor, backend_var_info[0]),
 
 #if AP_BATT_MONITOR_MAX_INSTANCES > 1
@@ -76,6 +78,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 2_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 2_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[1], "2_", 42, AP_BattMonitor, backend_var_info[1]),
 #endif
 
@@ -96,6 +100,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 3_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 3_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[2], "3_", 43, AP_BattMonitor, backend_var_info[2]),
 #endif
 
@@ -116,6 +122,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 4_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 4_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[3], "4_", 44, AP_BattMonitor, backend_var_info[3]),
 #endif
 
@@ -136,6 +144,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 5_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 5_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[4], "5_", 45, AP_BattMonitor, backend_var_info[4]),
 #endif
 
@@ -156,6 +166,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 6_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 6_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[5], "6_", 46, AP_BattMonitor, backend_var_info[5]),
 #endif
 
@@ -176,6 +188,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 7_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 7_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[6], "7_", 47, AP_BattMonitor, backend_var_info[6]),
 #endif
 
@@ -196,6 +210,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 8_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 8_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[7], "8_", 48, AP_BattMonitor, backend_var_info[7]),
 #endif
 
@@ -216,6 +232,8 @@ const AP_Param::GroupInfo AP_BattMonitor::var_info[] = {
     // @Path: AP_BattMonitor_FuelLevel_Analog.cpp
     // @Group: 9_
     // @Path: AP_BattMonitor_Synthetic_Current.cpp
+    // @Group: 9_
+    // @Path: AP_BattMonitor_INA2xx.cpp
     AP_SUBGROUPVARPTR(drivers[8], "9_", 49, AP_BattMonitor, backend_var_info[8]),
 #endif
 
@@ -478,6 +496,10 @@ void AP_BattMonitor::read()
             drivers[i]->read();
             drivers[i]->update_resistance_estimate();
 
+#if AP_BATTERY_ESC_TELEM_OUTBOUND_ENABLED
+            drivers[i]->update_esc_telem_outbound();
+#endif
+
 #if HAL_LOGGING_ENABLED
             if (logger != nullptr && logger->should_log(_log_battery_bit)) {
                 const uint64_t time_us = AP_HAL::micros64();
@@ -544,7 +566,11 @@ bool AP_BattMonitor::current_amps(float &current, uint8_t instance) const {
 /// consumed_mah - returns total current drawn since start-up in milliampere.hours
 bool AP_BattMonitor::consumed_mah(float &mah, const uint8_t instance) const {
     if ((instance < _num_instances) && (drivers[instance] != nullptr) && drivers[instance]->has_current()) {
-        mah = state[instance].consumed_mah;
+        const float consumed_mah = state[instance].consumed_mah;
+        if (isnan(consumed_mah)) {
+            return false;
+        }
+        mah = consumed_mah;
         return true;
     } else {
         return false;

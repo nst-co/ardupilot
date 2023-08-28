@@ -21,6 +21,7 @@ import sys
 import time
 import traceback
 
+import blimp
 import rover
 import arducopter
 import arduplane
@@ -380,6 +381,7 @@ def find_specific_test_to_run(step):
 
 
 tester_class_map = {
+    "test.Blimp": blimp.AutoTestBlimp,
     "test.Copter": arducopter.AutoTestCopter,
     "test.CopterTests1a": arducopter.AutoTestCopterTests1a, # 8m43s
     "test.CopterTests1b": arducopter.AutoTestCopterTests1b, # 8m5s
@@ -399,8 +401,9 @@ tester_class_map = {
     "test.CAN": arducopter.AutoTestCAN,
 }
 
-suplementary_test_binary_map = {
-    "test.CAN": ["sitl_periph_gps.AP_Periph", "sitl_periph_gps.AP_Periph.1"],
+supplementary_test_binary_map = {
+    "test.CAN": ["sitl_periph_gps:AP_Periph:0:Tools/autotest/default_params/periph.parm,Tools/autotest/default_params/quad-periph.parm", # noqa: E501
+                 "sitl_periph_gps:AP_Periph:1:Tools/autotest/default_params/periph.parm"],
 }
 
 
@@ -485,6 +488,11 @@ def run_step(step):
         return util.build_replay(board='SITL')
 
     if vehicle_binary is not None:
+        try:
+            binary = binary_path(step, debug=opts.debug)
+            os.unlink(binary)
+        except (FileNotFoundError, ValueError):
+            pass
         if len(vehicle_binary.split(".")) == 1:
             return util.build_SITL(vehicle_binary, **build_opts)
         else:
@@ -499,24 +507,31 @@ def run_step(step):
     if step.startswith("defaults"):
         vehicle = step[9:]
         return get_default_params(vehicle, binary)
+
+    # see if we need any supplementary binaries
     supplementary_binaries = []
-    if step in suplementary_test_binary_map:
-        for supplementary_test_binary in suplementary_test_binary_map[step]:
-            config_name = supplementary_test_binary.split('.')[0]
-            binary_name = supplementary_test_binary.split('.')[1]
-            instance_num = 0
-            if len(supplementary_test_binary.split('.')) >= 3:
-                instance_num = int(supplementary_test_binary.split('.')[2])
-            supplementary_binaries.append([util.reltopdir(os.path.join('build',
-                                                                       config_name,
-                                                                       'bin',
-                                                                       binary_name)),
-                                          '-I {}'.format(instance_num)])
-        # we are running in conjunction with a supplementary app
-        # can't have speedup
-        opts.speedup = 1.0
-    else:
-        supplementary_binaries = []
+    for k in supplementary_test_binary_map.keys():
+        if step.startswith(k):
+            # this test needs to use supplementary binaries
+            for supplementary_test_binary in supplementary_test_binary_map[k]:
+                a = supplementary_test_binary.split(':')
+                if len(a) != 4:
+                    raise ValueError("Bad supplementary_test_binary %s" % supplementary_test_binary)
+                config_name = a[0]
+                binary_name = a[1]
+                instance_num = int(a[2])
+                param_file = a[3].split(",")
+                bin_path = util.reltopdir(os.path.join('build', config_name, 'bin', binary_name))
+                customisation = '-I {}'.format(instance_num)
+                sup_binary = {"binary" : bin_path,
+                              "customisation" : customisation,
+                              "param_file" : param_file}
+                supplementary_binaries.append(sup_binary)
+            # we are running in conjunction with a supplementary app
+            # can't have speedup
+            opts.speedup = 1.0
+            break
+
     fly_opts = {
         "viewerip": opts.viewerip,
         "use_map": opts.map,
@@ -714,6 +729,7 @@ def write_fullresults():
     results.addglob('APM:Copter documentation', 'docs/ArduCopter/index.html')
     results.addglob('APM:Rover documentation', 'docs/Rover/index.html')
     results.addglob('APM:Sub documentation', 'docs/ArduSub/index.html')
+    results.addglob('APM:Blimp documentation', 'docs/Blimp/index.html')
     results.addglobimage("Flight Track", '*.png')
 
     write_webresults(results)
@@ -802,7 +818,7 @@ def run_tests(steps):
     return passed
 
 
-vehicle_list = ['Sub', 'Copter', 'Plane', 'Tracker', 'Rover', 'QuadPlane', 'BalanceBot', 'Helicopter', 'Sailboat']
+vehicle_list = ['Sub', 'Copter', 'Plane', 'Tracker', 'Rover', 'QuadPlane', 'BalanceBot', 'Helicopter', 'Sailboat', 'Blimp']
 
 
 def list_subtests():
@@ -1115,6 +1131,7 @@ if __name__ == "__main__":
 
         'build.Blimp',
         'defaults.Blimp',
+        'test.Blimp',
 
         'build.SITLPeriphGPS',
         'test.CAN',

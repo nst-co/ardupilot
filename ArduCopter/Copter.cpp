@@ -178,7 +178,9 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK_CLASS(AC_Sprayer,           &copter.sprayer,               update,         3,  90,  54),
 #endif
     SCHED_TASK(three_hz_loop,          3,     75, 57),
+#if AP_SERVORELAYEVENTS_ENABLED
     SCHED_TASK_CLASS(AP_ServoRelayEvents,  &copter.ServoRelayEvents,      update_events, 50,  75,  60),
+#endif
     SCHED_TASK_CLASS(AP_Baro,              &copter.barometer,             accumulate,    50,  90,  63),
 #if AC_PRECLAND_ENABLED
     SCHED_TASK(update_precland,      400,     50,  69),
@@ -445,6 +447,18 @@ bool Copter::has_ekf_failsafed() const
 
 #endif // AP_SCRIPTING_ENABLED
 
+// returns true if vehicle is landing. Only used by Lua scripts
+bool Copter::is_landing() const
+{
+    return flightmode->is_landing();
+}
+
+// returns true if vehicle is taking off. Only used by Lua scripts
+bool Copter::is_taking_off() const
+{
+    return flightmode->is_taking_off();
+}
+
 bool Copter::current_mode_requires_mission() const
 {
 #if MODE_AUTO_ENABLED == ENABLED
@@ -569,6 +583,11 @@ void Copter::ten_hz_logging_loop()
         g2.winch.write_log();
     }
 #endif
+#if HAL_MOUNT_ENABLED
+    if (should_log(MASK_LOG_CAMERA)) {
+        camera_mount.write_log();
+    }
+#endif
 }
 
 // twentyfive_hz_logging - should be run at 25hz
@@ -595,7 +614,7 @@ void Copter::twentyfive_hz_logging()
 #endif
 }
 
-// three_hz_loop - 3.3hz loop
+// three_hz_loop - 3hz loop
 void Copter::three_hz_loop()
 {
     // check if we've lost contact with the ground station
@@ -725,7 +744,7 @@ void Copter::update_super_simple_bearing(bool force_update)
 
 void Copter::read_AHRS(void)
 {
-    // we tell AHRS to skip INS update as we have already done it in fast_loop()
+    // we tell AHRS to skip INS update as we have already done it in FAST_TASK.
     ahrs.update(true);
 }
 
