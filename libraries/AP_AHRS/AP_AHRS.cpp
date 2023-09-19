@@ -325,7 +325,7 @@ void AP_AHRS::update_state(void)
     state.primary_accel = _get_primary_accel_index();
     state.primary_core = _get_primary_core_index();
     state.wind_estimate_ok = _wind_estimate(state.wind_estimate);
-    state.EAS2TAS = dcm.get_EAS2TAS();
+    state.EAS2TAS = AP_AHRS_Backend::get_EAS2TAS();
     state.airspeed_ok = _airspeed_estimate(state.airspeed);
     state.airspeed_true_ok = _airspeed_estimate_true(state.airspeed_true);
     state.airspeed_vec_ok = _airspeed_vector_true(state.airspeed_vec);
@@ -703,7 +703,7 @@ bool AP_AHRS::_get_location(Location &loc) const
 {
     switch (active_EKF_type()) {
     case EKFType::NONE:
-        return dcm.get_location(loc);
+        return dcm_estimates.get_location(loc);
 
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO:
@@ -723,19 +723,18 @@ bool AP_AHRS::_get_location(Location &loc) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_location(loc);
+        return sim_estimates.get_location(loc);
 #endif
 
 #if HAL_EXTERNAL_AHRS_ENABLED
-    case EKFType::EXTERNAL: {
-        return external.get_location(loc);
-    }
+    case EKFType::EXTERNAL:
+        return external_estimates.get_location(loc);
 #endif
     }
 
     // fall back to position from DCM
     if (!always_use_EKF()) {
-        return dcm.get_location(loc);
+        return dcm_estimates.get_location(loc);
     }
     return false;
 }
@@ -787,7 +786,7 @@ bool AP_AHRS::_wind_estimate(Vector3f &wind) const
  */
 bool AP_AHRS::airspeed_sensor_enabled(void) const
 {
-    if (!dcm.airspeed_sensor_enabled()) {
+    if (!AP_AHRS_Backend::airspeed_sensor_enabled()) {
         return false;
     }
     nav_filter_status filter_status;
@@ -808,8 +807,6 @@ bool AP_AHRS::airspeed_sensor_enabled(void) const
 // if we have an estimate
 bool AP_AHRS::_airspeed_estimate(float &airspeed_ret) const
 {
-    bool ret = false;
-
 #if AP_AIRSPEED_ENABLED
     if (airspeed_sensor_enabled()) {
         uint8_t idx = get_active_airspeed_index();
@@ -838,6 +835,8 @@ bool AP_AHRS::_airspeed_estimate(float &airspeed_ret) const
 
     // get wind estimates
     Vector3f wind_vel;
+    bool have_wind = false;
+
     switch (active_EKF_type()) {
     case EKFType::NONE:
         return dcm.airspeed_estimate(get_active_airspeed_index(), airspeed_ret);
@@ -854,7 +853,7 @@ bool AP_AHRS::_airspeed_estimate(float &airspeed_ret) const
 
 #if HAL_NAVEKF3_AVAILABLE
     case EKFType::THREE:
-        ret = EKF3.getWind(wind_vel);
+        have_wind = EKF3.getWind(wind_vel);
         break;
 #endif
 
@@ -866,10 +865,9 @@ bool AP_AHRS::_airspeed_estimate(float &airspeed_ret) const
 
     // estimate it via nav velocity and wind estimates
     Vector3f nav_vel;
-    float true_airspeed;
-    if (ret && have_inertial_nav() && get_velocity_NED(nav_vel)) {
+    if (have_wind && have_inertial_nav() && get_velocity_NED(nav_vel)) {
         Vector3f true_airspeed_vec = nav_vel - wind_vel;
-        true_airspeed = true_airspeed_vec.length();
+        float true_airspeed = true_airspeed_vec.length();
         float gnd_speed = nav_vel.length();
         if (_wind_max > 0) {
             float tas_lim_lower = MAX(0.0f, (gnd_speed - _wind_max));
@@ -879,12 +877,11 @@ bool AP_AHRS::_airspeed_estimate(float &airspeed_ret) const
             true_airspeed = MAX(0.0f, true_airspeed);
         }
         airspeed_ret = true_airspeed / get_EAS2TAS();
-    } else {
-        // fallback to DCM if airspeed estimate if EKF has wind but no velocity estimate
-        ret = dcm.airspeed_estimate(get_active_airspeed_index(), airspeed_ret);
+        return true;
     }
 
-    return ret;
+    // fallback to DCM
+    return dcm.airspeed_estimate(get_active_airspeed_index(), airspeed_ret);
 }
 
 bool AP_AHRS::_airspeed_estimate_true(float &airspeed_ret) const
@@ -1178,7 +1175,10 @@ bool AP_AHRS::_get_secondary_position(Location &loc) const
 
     case EKFType::NONE:
         // return DCM position
-        dcm.get_location(loc);
+        loc = dcm_estimates.location;
+        // FIXME: we intentionally do not return whether location is
+        // actually valid here so we continue to send mavlink messages
+        // and log data:
         return true;
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -1204,7 +1204,7 @@ bool AP_AHRS::_get_secondary_position(Location &loc) const
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
         // External is secondary
-        return external.get_location(loc);
+        return external_estimates.get_location(loc);
 #endif
     }
 
@@ -1215,22 +1215,24 @@ bool AP_AHRS::_get_secondary_position(Location &loc) const
 // EKF has a better ground speed vector estimate
 Vector2f AP_AHRS::_groundspeed_vector(void)
 {
-    Vector3f vec;
-
     switch (active_EKF_type()) {
     case EKFType::NONE:
         break;
 
 #if HAL_NAVEKF2_AVAILABLE
-    case EKFType::TWO:
+    case EKFType::TWO: {
+        Vector3f vec;
         EKF2.getVelNED(vec);
         return vec.xy();
+    }
 #endif
 
 #if HAL_NAVEKF3_AVAILABLE
-    case EKFType::THREE:
+    case EKFType::THREE: {
+        Vector3f vec;
         EKF3.getVelNED(vec);
         return vec.xy();
+    }
 #endif
 
 #if AP_AHRS_SIM_ENABLED
@@ -2270,11 +2272,11 @@ void AP_AHRS::_getCorrectedDeltaVelocityNED(Vector3f& ret, float& dt) const
         break;
 #endif
     }
+    ret.zero();
     if (imu_idx == -1) {
-        dcm.getCorrectedDeltaVelocityNED(ret, dt);
+        AP::ins().get_delta_velocity(ret, dt);
         return;
     }
-    ret.zero();
     AP::ins().get_delta_velocity((uint8_t)imu_idx, ret, dt);
     ret -= accel_bias*dt;
     ret = state.dcm_matrix * get_rotation_autopilot_body_to_vehicle_body() * ret;
@@ -2638,6 +2640,62 @@ bool AP_AHRS::_get_origin(Location &ret) const
     return false;
 }
 
+bool AP_AHRS::set_home(const Location &loc)
+{
+    WITH_SEMAPHORE(_rsem);
+    // check location is valid
+    if (loc.lat == 0 && loc.lng == 0 && loc.alt == 0) {
+        return false;
+    }
+    if (!loc.check_latlng()) {
+        return false;
+    }
+    // home must always be global frame at the moment as .alt is
+    // accessed directly by the vehicles and they may not be rigorous
+    // in checking the frame type.
+    Location tmp = loc;
+    if (!tmp.change_alt_frame(Location::AltFrame::ABSOLUTE)) {
+        return false;
+    }
+
+#if !APM_BUILD_TYPE(APM_BUILD_UNKNOWN)
+    if (!_home_is_set) {
+        // record home is set
+        AP::logger().Write_Event(LogEvent::SET_HOME);
+    }
+#endif
+
+    _home = tmp;
+    _home_is_set = true;
+
+    Log_Write_Home_And_Origin();
+
+    // send new home and ekf origin to GCS
+    GCS_SEND_MESSAGE(MSG_HOME);
+    GCS_SEND_MESSAGE(MSG_ORIGIN);
+
+    AP_HAL::Util::PersistentData &pd = hal.util->persistent_data;
+    pd.home_lat = loc.lat;
+    pd.home_lon = loc.lng;
+    pd.home_alt_cm = loc.alt;
+
+    return true;
+}
+
+/* if this was a watchdog reset then get home from backup registers */
+void AP_AHRS::load_watchdog_home()
+{
+    const AP_HAL::Util::PersistentData &pd = hal.util->persistent_data;
+    if (hal.util->was_watchdog_reset() && (pd.home_lat != 0 || pd.home_lon != 0)) {
+        _home.lat = pd.home_lat;
+        _home.lng = pd.home_lon;
+        _home.set_alt_cm(pd.home_alt_cm, Location::AltFrame::ABSOLUTE);
+        _home_is_set = true;
+        _home_locked = true;
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Restored watchdog home");
+    }
+}
+
 // get_hgt_ctrl_limit - get maximum height to be observed by the control loops in metres and a validity flag
 // this is used to limit height during optical flow navigation
 // it will return false when no limiting is required
@@ -2869,7 +2927,6 @@ uint8_t AP_AHRS::_get_primary_IMU_index() const
     int8_t imu = -1;
     switch (active_EKF_type()) {
     case EKFType::NONE:
-        imu = AP::ins().get_primary_gyro();
         break;
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO:
@@ -2893,7 +2950,7 @@ uint8_t AP_AHRS::_get_primary_IMU_index() const
 #endif
     }
     if (imu == -1) {
-        imu = AP::ins().get_primary_accel();
+        imu = AP::ins().get_primary_gyro();
     }
     return imu;
 }
@@ -2931,19 +2988,13 @@ int8_t AP_AHRS::_get_primary_core_index() const
 // get the index of the current primary accelerometer sensor
 uint8_t AP_AHRS::_get_primary_accel_index(void) const
 {
-    if (ekf_type() != EKFType::NONE) {
-        return get_primary_IMU_index();
-    }
-    return AP::ins().get_primary_accel();
+    return _get_primary_IMU_index();
 }
 
 // get the index of the current primary gyro sensor
 uint8_t AP_AHRS::_get_primary_gyro_index(void) const
 {
-    if (ekf_type() != EKFType::NONE) {
-        return get_primary_IMU_index();
-    }
-    return AP::ins().get_primary_gyro();
+    return _get_primary_IMU_index();
 }
 
 // see if EKF lane switching is possible to avoid EKF failsafe
@@ -3187,6 +3238,31 @@ bool AP_AHRS::get_velocity_NED(Vector3f &vec) const
 {
     vec = state.velocity_NED;
     return state.velocity_NED_ok;
+}
+
+// return location corresponding to vector relative to the
+// vehicle's origin
+bool AP_AHRS::get_location_from_origin_offset(Location &loc, const Vector3p &offset_ned) const
+{
+    if (!get_origin(loc)) {
+        return false;
+    }
+    loc.offset(offset_ned);
+
+    return true;
+}
+
+// return location corresponding to vector relative to the
+// vehicle's home location
+bool AP_AHRS::get_location_from_home_offset(Location &loc, const Vector3p &offset_ned) const
+{
+    if (!home_is_set()) {
+        return false;
+    }
+    loc = get_home();
+    loc.offset(offset_ned);
+
+    return true;
 }
 
 // singleton instance
