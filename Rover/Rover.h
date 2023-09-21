@@ -38,6 +38,7 @@
 #include <AP_Logger/AP_Logger.h>
 #include <AP_OSD/AP_OSD.h>
 #include <AR_Motors/AP_MotorsUGV.h>
+#include <AP_L1_Control/AP_L1_Control.h>
 #include <AP_Mission/AP_Mission.h>
 #include <AP_Mission/AP_Mission_ChangeDetector.h>
 #include <AR_WPNav/AR_WPNav_OA.h>
@@ -146,6 +147,8 @@ private:
 
     // Arming/Disarming management class
     AP_Arming_Rover arming;
+
+    AP_L1_Control L1_controller{ahrs, nullptr};
 
     // dummy external control implementation
 #if AP_EXTERNAL_CONTROL_ENABLED
