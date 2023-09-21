@@ -130,6 +130,15 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("RADIUS_LAST", 11, AR_WPNav, _radius_last, AR_WPNAV_RADIUS_DEFAULT),
 
+    // @Param: OVERSHOOT_L
+    // @DisplayName: Last waypoint overshoot maximum
+    // @Description: Last waypoint overshoot maximum in meters.
+    // @Units: m
+    // @Range: 0 10
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("OVERSHOOT_L", 9, AR_WPNav, _overshoot_l, AR_WPNAV_OVERSHOOT_DEFAULT),
+
     AP_GROUPEND
 };
 
@@ -202,8 +211,10 @@ void AR_WPNav::update(float dt)
     // check if vehicle has reached the destination
     if(_destination.isLastDestination){
         _radius_tmp = _radius_last;
+        _overshoot_tmp = _overshoot_l;
     }else{
         _radius_tmp = _radius;
+        _overshoot_tmp = _overshoot;
     }
     const bool near_wp = _distance_to_destination <= _radius_tmp;
     const bool past_wp = current_loc.past_interval_finish_line(_origin, _destination);
@@ -291,7 +302,11 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
             _desired_speed_final = 0.0f;
         } else {
             // calculate maximum speed that keeps overshoot within bounds
-            const float radius_m = fabsf(_overshoot / (cosf(radians(turn_angle_cd * 0.01f)) - 1.0f));
+            float overShoot_tmp = _overshoot;
+            if(_destination.isLastDestination){
+                overShoot_tmp = _overshoot_l;
+            }
+            const float radius_m = fabsf(overShoot_tmp / (cosf(radians(turn_angle_cd * 0.01f)) - 1.0f));
             _desired_speed_final = MIN(_desired_speed, safe_sqrt(_atc.get_turn_lat_accel_max() * radius_m));
             // ensure speed does not fall below minimum
             apply_speed_min(_desired_speed_final);
@@ -516,11 +531,11 @@ void AR_WPNav::advance_wp_target_along_track(const Location &current_loc, float 
             // regular waypoints also require the vehicle to be within the waypoint radius or past the "finish line"
             //const bool near_wp = current_loc.get_distance(_destination) <= _radius;
             if(_destination.isLastDestination){
-                _radiusTmp = _radius_last;
+                _radius_tmp = _radius_last;
             }else{
-                _radiusTmp = _radius;
+                _radius_tmp = _radius;
             }
-            const bool near_wp = _distance_to_destination <= _radiusTmp;
+            const bool near_wp = _distance_to_destination <= _radius_tmp;
             const bool past_wp = current_loc.past_interval_finish_line(_origin, _destination);
             _reached_destination = near_wp || past_wp;
         }
@@ -629,7 +644,7 @@ void AR_WPNav::update_desired_speed(float dt)
     float radius_m = 999.0f;
     const float radius_calc_denom = fabsf(1.0f - cosf(turn_angle_rad));
     if (!is_zero(radius_calc_denom)) {
-        radius_m = MAX(0.0f, _overshoot + wp_overshoot_adj) / radius_calc_denom;
+        radius_m = MAX(0.0f, _overshoot_tmp + wp_overshoot_adj) / radius_calc_denom;
     }
 
     // calculate and limit speed to allow vehicle to stay on circle

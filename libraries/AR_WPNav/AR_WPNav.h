@@ -181,6 +181,7 @@ protected:
     AP_Float _accel_max;            // max acceleration.  If zero then attitude controller's specified max accel is used
     AP_Float _jerk_max;             // max jerk (change in acceleration).  If zero then value is same as accel_max
     AP_Float _radius_last;          // distance in meters from a last waypoint when we consider the waypoint has been reached
+    AP_Float _overshoot_l;          // last waypoint maximum horizontal overshoot in meters
 
     // references
     AR_AttitudeControl& _atc;       // rover attitude control library
@@ -201,6 +202,7 @@ protected:
     // variables held in vehicle code (for now)
     float _turn_radius;             // vehicle turn radius in meters
     float _radius_tmp;
+    float _overshoot_tmp;
     bool _pivot_possible;           // true if vehicle can pivot
     bool _pivot_active;             // true if vehicle is currently pivoting
 
