@@ -33,9 +33,6 @@ extern const AP_HAL::HAL& hal;
 #define AR_WPNAV_OVERSPEED_RATIO_MAX    5.0f    // if _overspeed_enabled the vehicle may travel as quickly as 5x WP_SPEED
 #define AR_WPNAV_SNAP_MAX               15.0f   // scurve snap (change in jerk) in m/s/s/s/s
 #define AR_WPNAV_OVERSHOOT_DEFAULT      2.0f
-#define AR_WPNAV_PIVOT_ANGLE_DEFAULT    60
-#define AR_WPNAV_PIVOT_ANGLE_ACCURACY   5   // vehicle will pivot to within this many degrees of destination
-#define AR_WPNAV_PIVOT_RATE_DEFAULT     90
 #define AR_WPNAV_ACCEL_MAX              20.0    // acceleration used when user has specified no acceleration limit
 
 const AP_Param::GroupInfo AR_WPNav::var_info[] = {
@@ -67,23 +64,8 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("OVERSHOOT", 3, AR_WPNav, _overshoot, AR_WPNAV_OVERSHOOT_DEFAULT),
 
-    // @Param: PIVOT_ANGLE
-    // @DisplayName: Waypoint Pivot Angle
-    // @Description: Pivot when the difference between the vehicle's heading and its target heading is more than this many degrees. Set to zero to disable pivot turns. Note: This parameter should be greater than 10 degrees for pivot turns to work.
-    // @Units: deg
-    // @Range: 0 360
-    // @Increment: 1
-    // @User: Standard
-    AP_GROUPINFO("PIVOT_ANGLE", 4, AR_WPNav, _pivot_angle, AR_WPNAV_PIVOT_ANGLE_DEFAULT),
-
-    // @Param: PIVOT_RATE
-    // @DisplayName: Waypoint Pivot Turn Rate
-    // @Description: Turn rate during pivot turns
-    // @Units: deg/s
-    // @Range: 0 360
-    // @Increment: 1
-    // @User: Standard
-    AP_GROUPINFO("PIVOT_RATE", 5, AR_WPNav, _pivot_rate, AR_WPNAV_PIVOT_RATE_DEFAULT),
+    // 4 was PIVOT_ANGLE
+    // 5 was PIVOT_RATE
 
     // @Param: SPEED_MIN
     // @DisplayName: Waypoint speed minimum
@@ -94,14 +76,11 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("SPEED_MIN", 6, AR_WPNav, _speed_min, 0),
 
-    // @Param: PIVOT_DELAY
-    // @DisplayName: Delay after pivot turn
-    // @Description: Waiting time after pivot turn
-    // @Units: s
-    // @Range: 0 60
-    // @Increment: 0.1
-    // @User: Standard
-    AP_GROUPINFO("PIVOT_DELAY", 7, AR_WPNav, _pivot_delay, 0),
+    // 7 was PIVOT_DELAY
+
+    // @Group: PIVOT_
+    // @Path: AR_PivotTurn.cpp
+    AP_SUBGROUPINFO(_pivot, "PIVOT_", 8, AR_WPNav, AR_PivotTurn),
 
     // @Param: ACCEL
     // @DisplayName: Waypoint acceleration
@@ -137,7 +116,7 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @Range: 0 10
     // @Increment: 0.1
     // @User: Standard
-    AP_GROUPINFO("OVERSHOOT_L", 9, AR_WPNav, _overshoot_l, AR_WPNAV_OVERSHOOT_DEFAULT),
+    AP_GROUPINFO("OVERSHOOT_L", 12, AR_WPNav, _overshoot_l, AR_WPNAV_OVERSHOOT_DEFAULT),
 
     AP_GROUPEND
 };
@@ -145,7 +124,8 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
 AR_WPNav::AR_WPNav(AR_AttitudeControl& atc, AR_PosControl &pos_control, AP_Navigation& nav_controller) :
     _atc(atc),
     _pos_control(pos_control),
-    _nav_controller(nav_controller)
+    _nav_controller(nav_controller),
+    _pivot(atc)
 {
     AP_Param::setup_object_defaults(this, var_info);
 }
@@ -174,6 +154,10 @@ void AR_WPNav::init(float speed_max)
     // init some flags
     _reached_destination = false;
     _fast_waypoint = false;
+
+    // ensure pivot turns are deactivated
+    _pivot.deactivate();
+    _pivot_at_next_wp = false;
 
     // initialise origin and destination to stopping point
     _orig_and_dest_valid = false;
@@ -231,11 +215,8 @@ void AR_WPNav::update(float dt)
         return;
     }
 
-    // calculate the required turn of the wheels
-    update_steering(current_loc, speed);
-
-    // calculate desired speed
-    update_desired_speed(dt);
+    // update_steering_and_speed
+    update_steering_and_speed(current_loc, dt);
 }
 
 // set maximum speed in m/s.  returns true on success
@@ -285,8 +266,12 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
 
     update_distance_and_bearing_to_destination();
 
-    // determine if we should pivot immediately
-    update_pivot_active_flag();
+    // check if vehicle should pivot if vehicle stopped at previous waypoint
+    // or journey to previous waypoint was interrupted or navigation has just started
+    if (!_fast_waypoint) {
+        _pivot.deactivate();
+        _pivot.check_activation((_reversed ? wrap_360_cd(oa_wp_bearing_cd() + 18000) : oa_wp_bearing_cd()) * 0.01, _pivot_at_next_wp);
+    }
 
     // set final desired speed and whether vehicle should pivot
     _desired_speed_final = 0.0f;
@@ -297,9 +282,6 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
             // if turning less than 0.1 degrees vehicle can continue at full speed
             // we use 0.1 degrees instead of zero to avoid divide by zero in calcs below
             _desired_speed_final = _desired_speed;
-        } else if (use_pivot_steering_at_next_WP(turn_angle_cd)) {
-            // pivoting so we will stop
-            _desired_speed_final = 0.0f;
         } else {
             // calculate maximum speed that keeps overshoot within bounds
             float overShoot_tmp = _overshoot;
@@ -413,57 +395,6 @@ bool AR_WPNav::get_stopping_location(Location& stopping_loc)
     stopping_loc.offset(stopping_offset.x, stopping_offset.y);
 
     return true;
-}
-
-// returns true if vehicle should pivot turn at next waypoint
-bool AR_WPNav::use_pivot_steering_at_next_WP(float yaw_error_cd) const
-{
-    // check cases where we clearly cannot use pivot steering
-    if (!_pivot_possible || _pivot_angle <= AR_WPNAV_PIVOT_ANGLE_ACCURACY) {
-        return false;
-    }
-
-    // if error is larger than _pivot_angle then use pivot steering at next WP
-    if (fabsf(yaw_error_cd) * 0.01f > _pivot_angle) {
-        return true;
-    }
-
-    return false;
-}
-
-// updates _pivot_active flag based on heading error to destination
-// relies on update_distance_and_bearing_to_destination having been called first
-// to update _oa_wp_bearing and _reversed variables
-void AR_WPNav::update_pivot_active_flag()
-{
-    // check cases where we clearly cannot use pivot steering
-    if (!_pivot_possible || (_pivot_angle <= AR_WPNAV_PIVOT_ANGLE_ACCURACY)) {
-        _pivot_active = false;
-        return;
-    }
-
-    // calc yaw error
-    const float yaw_cd = _reversed ? wrap_360_cd(_wp_bearing_cd + 18000) : _wp_bearing_cd;
-    const float yaw_error = fabsf(wrap_180_cd(yaw_cd - AP::ahrs().yaw_sensor)) * 0.01f;
-
-    // if error is larger than _pivot_angle start pivot steering
-    if (yaw_error > _pivot_angle) {
-        _pivot_active = true;
-        return;
-    }
-
-    uint32_t now = AP_HAL::millis();
-
-    // if within 5 degrees of the target heading, set start time of pivot steering
-    if (_pivot_active && yaw_error < AR_WPNAV_PIVOT_ANGLE_ACCURACY && _pivot_start_ms == 0) {
-        _pivot_start_ms = now;
-    }
-
-    // exit pivot steering after the time set by pivot_delay has elapsed
-    if (_pivot_start_ms > 0 && now - _pivot_start_ms >= constrain_float(_pivot_delay.get(), 0.0f, 60.0f) * 1000.0f) {
-        _pivot_active = false;
-        _pivot_start_ms = 0;
-    }
 }
 
 // true if update has been called recently
@@ -582,34 +513,39 @@ void AR_WPNav::update_distance_and_bearing_to_destination()
     _wp_bearing_cd = current_loc.get_bearing_to(_destination);
 }
 
-// calculate steering output to drive along line from origin to destination waypoint
-// relies on update_distance_and_bearing_to_destination being called first so _wp_bearing_cd has been updated
-void AR_WPNav::update_steering(const Location& current_loc, float current_speed)
+// calculate steering and speed to drive along line from origin to destination waypoint
+void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
 {
-    // calculate desired turn rate and update desired heading
-    if (_pivot_active) {
-        _cross_track_error = calc_crosstrack_error(current_loc);
-        _desired_heading_cd = _reversed ? wrap_360_cd(_wp_bearing_cd + 18000) : _wp_bearing_cd;;
+    _cross_track_error = calc_crosstrack_error(current_loc);
+
+    // handle pivot turns
+    if (_pivot.active()) {
+        // decelerate to zero
+        _desired_speed_limited = _atc.get_desired_speed_accel_limited(0.0f, dt);
+        _desired_heading_cd = _reversed ? wrap_360_cd(oa_wp_bearing_cd() + 18000) : oa_wp_bearing_cd();
+        _desired_turn_rate_rads = is_zero(_desired_speed_limited) ? _pivot.get_turn_rate_rads(_desired_heading_cd * 0.01, dt) : 0;
         _desired_lat_accel = 0.0f;
-        _desired_turn_rate_rads = _atc.get_turn_rate_from_heading(radians(_desired_heading_cd * 0.01f), radians(_pivot_rate));
-
-        // update flag so that it can be cleared
-        update_pivot_active_flag();
-    } else {
-        // run L1 controller
-        _nav_controller.set_reverse(_reversed);
-        _nav_controller.update_waypoint(_reached_destination ? current_loc : _origin, _destination, _radius_tmp);
-
-        // retrieve lateral acceleration, heading back towards line and crosstrack error
-        _desired_lat_accel = constrain_float(_nav_controller.lateral_acceleration(), -_atc.get_turn_lat_accel_max(), _atc.get_turn_lat_accel_max());
-        _desired_heading_cd = wrap_360_cd(_nav_controller.nav_bearing_cd());
-        if (_reversed) {
-            _desired_lat_accel *= -1.0f;
-            _desired_heading_cd = wrap_360_cd(_desired_heading_cd + 18000);
-        }
-        _cross_track_error = _nav_controller.crosstrack_error();
-        _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, current_speed);
+        return;
     }
+
+    float current_speed;
+    _atc.get_forward_speed(current_speed);
+    // run L1 controller
+    _nav_controller.set_reverse(_reversed);
+    _nav_controller.update_waypoint(_reached_destination ? current_loc : _origin, _destination, _radius_tmp);
+
+    // retrieve lateral acceleration, heading back towards line and crosstrack error
+    _desired_lat_accel = constrain_float(_nav_controller.lateral_acceleration(), -_atc.get_turn_lat_accel_max(), _atc.get_turn_lat_accel_max());
+    _desired_heading_cd = wrap_360_cd(_nav_controller.nav_bearing_cd());
+    if (_reversed) {
+        _desired_lat_accel *= -1.0f;
+        _desired_heading_cd = wrap_360_cd(_desired_heading_cd + 18000);
+    }
+    _cross_track_error = _nav_controller.crosstrack_error();
+    _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, current_speed);
+
+    // calculate desired speed
+    update_desired_speed(dt);
 }
 
 // calculated desired speed(in m/s) based on yaw error and lateral acceleration and/or distance to a waypoint
@@ -617,13 +553,6 @@ void AR_WPNav::update_steering(const Location& current_loc, float current_speed)
 // have been updated: _wp_bearing_cd, _cross_track_error, _distance_to_destination
 void AR_WPNav::update_desired_speed(float dt)
 {
-    // reduce speed to zero during pivot turns
-    if (_pivot_active) {
-        // decelerate to zero
-        _desired_speed_limited = _atc.get_desired_speed_accel_limited(0.0f, dt);
-        return;
-    }
-
     // accelerate desired speed towards max
     float des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_desired_speed : _desired_speed, dt);
 
@@ -665,8 +594,8 @@ void AR_WPNav::update_desired_speed(float dt)
 // settor to allow vehicle code to provide turn related param values to this library (should be updated regularly)
 void AR_WPNav::set_turn_params(float turn_radius, bool pivot_possible)
 {
-    _turn_radius = turn_radius;
-    _pivot_possible = pivot_possible;
+    _turn_radius = pivot_possible ? 0.0 : turn_radius;
+    _pivot.enable(pivot_possible);
 }
 
 // adjust speed to ensure it does not fall below value held in SPEED_MIN

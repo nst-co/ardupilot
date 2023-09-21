@@ -5,6 +5,7 @@
 #include <APM_Control/AR_PosControl.h>
 #include <AP_Navigation/AP_Navigation.h>
 #include <AC_Avoidance/AP_OAPathPlanner.h>
+#include "AR_PivotTurn.h"
 
 const float AR_WPNAV_HEADING_UNKNOWN = 99999.0f; // used to indicate to set_desired_location method that next leg's heading is unknown
 
@@ -104,7 +105,7 @@ public:
     float get_default_accel() const { return _accel_max; }
     float get_default_jerk() const { return _jerk_max; }
     float get_radius() const { return _radius; }
-    float get_pivot_rate() const { return _pivot_rate; }
+    float get_pivot_rate() const { return _pivot.get_rate_max(); }
 
     // calculate stopping location using current position and attitude controller provided maximum deceleration
     // returns true on success, false on failure
@@ -130,22 +131,13 @@ protected:
     // update distance and bearing from vehicle's current position to destination
     void update_distance_and_bearing_to_destination();
 
-    // calculate steering output to drive along line from origin to destination waypoint
-    // relies on update_distance_and_bearing_to_destination being called first
-    void update_steering(const Location& current_loc, float current_speed);
+    // calculate steering and speed to drive along line from origin to destination waypoint
+    void update_steering_and_speed(const Location &current_loc, float dt);
 
     // calculated desired speed(in m/s) based on yaw error and lateral acceleration and/or distance to a waypoint
     // relies on update_distance_and_bearing_to_destination and update_steering being run so these internal members
     // have been updated: _wp_bearing_cd, _cross_track_error, _distance_to_destination
     void update_desired_speed(float dt);
-
-    // returns true if vehicle should pivot turn at next waypoint
-    bool use_pivot_steering_at_next_WP(float yaw_error_cd) const;
-
-    // updates _pivot_active flag based on heading error to destination
-    // relies on update_distance_and_bearing_to_destination having been called first
-    // to update _oa_wp_bearing and _reversed variables
-    void update_pivot_active_flag();
 
     // adjust speed to ensure it does not fall below value held in SPEED_MIN
     // desired_speed should always be positive (or zero)
@@ -173,11 +165,8 @@ protected:
     AP_Float _speed_max;            // target speed between waypoints in m/s
     AP_Float _speed_min;            // target speed minimum in m/s.  Vehicle will not slow below this speed for corners
     AP_Float _radius;               // distance in meters from a waypoint when we consider the waypoint has been reached
-    //AR_PivotTurn _pivot;            // pivot turn controller
+    AR_PivotTurn _pivot;            // pivot turn controller
     AP_Float _overshoot;            // maximum horizontal overshoot in meters
-    AP_Int16 _pivot_angle;          // angle error that leads to pivot turn
-    AP_Int16 _pivot_rate;           // desired turn rate during pivot turns in deg/sec
-    AP_Float _pivot_delay;          // waiting time after pivot turn
     AP_Float _accel_max;            // max acceleration.  If zero then attitude controller's specified max accel is used
     AP_Float _jerk_max;             // max jerk (change in acceleration).  If zero then value is same as accel_max
     AP_Float _radius_last;          // distance in meters from a last waypoint when we consider the waypoint has been reached
@@ -195,7 +184,7 @@ protected:
     SCurve _scurve_next_leg;        // next scurve trajectory used to blend with current scurve trajectory
 */
     bool _fast_waypoint;            // true if vehicle will stop at the next waypoint
-    //bool _pivot_at_next_wp;         // true if vehicle should pivot at next waypoint
+    bool _pivot_at_next_wp;         // true if vehicle should pivot at next waypoint
     bool _overspeed_enabled;        // if true scurve's position target will speedup to catch vehicles travelling faster than WP_SPEED
     //float _track_scalar_dt;         // time scaler to ensure scurve target doesn't get too far ahead of vehicle
 
@@ -203,12 +192,9 @@ protected:
     float _turn_radius;             // vehicle turn radius in meters
     float _radius_tmp;
     float _overshoot_tmp;
-    bool _pivot_possible;           // true if vehicle can pivot
-    bool _pivot_active;             // true if vehicle is currently pivoting
 
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update
-    uint32_t _pivot_start_ms;       // system time when pivot turn started
     Location _origin;               // origin Location (vehicle will travel from the origin to the destination)
     Location _destination;          // destination Location when in Guided_WP
     bool _orig_and_dest_valid;      // true if the origin and destination have been set
