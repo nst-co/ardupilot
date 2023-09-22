@@ -118,6 +118,22 @@ const AP_Param::GroupInfo AP_MotorsUGV::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("THST_ASYM", 14, AP_MotorsUGV, _thrust_asymmetry, 1.0f),
 
+    // @Param: TREAD
+    // @DisplayName: Vehicle tread
+    // @Description: Vehicle tread.
+    // @Units: m
+    // @Range: 0.1 5.0
+    // @User: Advanced
+    AP_GROUPINFO("TREAD", 15, AP_MotorsUGV, _tread, 0.6f),
+
+    // @Param: WHEELBASE
+    // @DisplayName: Vehicle wheelbase
+    // @Description: Vehicle wheelbase.
+    // @Units: m
+    // @Range: 0.1 5.0
+    // @User: Advanced
+    AP_GROUPINFO("WHEELBASE", 16, AP_MotorsUGV, _wheelbase, 0.6f),
+
     AP_GROUPEND
 };
 
@@ -741,12 +757,10 @@ void AP_MotorsUGV::output_regular(bool armed, float ground_speed, float steering
         float throttle_rateLeft = 1.0f;
         float throttle_rateRight = 1.0f;
         if (fabsf(steering) > 90.0f) { // Output adjustment for turn angles exceeding 2%
-            const float wheelBase = 0.6f;
-            const float tread = 0.6f;
             const float max_angle_outside = constrain_float(_steering_throttle_mix, 0.3f, 0.5f);
             const float theta = (steering / 4500.0f) * max_angle_outside;
-            const float rearCenterTurningRadius = wheelBase / tanf(theta) - tread / 2.0f;
-            const float diffRate = tread / 2.0f / fabsf(rearCenterTurningRadius);
+            const float rearCenterTurningRadius = _wheelbase / tanf(theta) - _tread / 2.0f;
+            const float diffRate = _tread / 2.0f / fabsf(rearCenterTurningRadius);
             if (is_negative(steering)) {
                 throttle_rateLeft = 1.0f - diffRate;
                 throttle_rateRight = 1.0f + diffRate;
