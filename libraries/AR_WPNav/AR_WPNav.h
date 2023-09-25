@@ -30,15 +30,6 @@ public:
     // nudge_speed_max should always be positive regardless of whether the vehicle is travelling forward or reversing
     void set_nudge_speed_max(float nudge_speed_max);
 
-    // return desired speed
-    float get_desired_speed() const { return _desired_speed; }
-
-    // set desired speed in m/s
-    void set_desired_speed(float speed) { _desired_speed = MAX(speed, 0.0f); }
-
-    // restore desired speed to default from parameter value
-    void set_desired_speed_to_default() { _desired_speed = _speed_max; }
-
     // execute the mission in reverse (i.e. drive backwards to destination)
     bool get_reversed() const { return _reversed; }
     void set_reversed(bool reversed) { _reversed = reversed; }
@@ -210,9 +201,8 @@ protected:
     //uint32_t _last_speed_update_ms; // system time that speed_max was last update.  used to ensure speed_max is not update too quickly
 
     // main outputs from navigation library
-    float _desired_speed;           // desired speed in m/s
-    float _desired_speed_final;     // desired speed in m/s when we reach the destination
     float _desired_speed_limited;   // desired speed (above) but accel/decel limited and reduced to keep vehicle within _overshoot of line
+    float _desired_speed_final;     // desired speed in m/s when we reach the destination
     float _desired_turn_rate_rads;  // desired turn-rate in rad/sec (negative is counter clockwise, positive is clockwise)
     float _desired_lat_accel;       // desired lateral acceleration (for reporting only)
     float _desired_heading_cd;      // desired heading (back towards line between origin and destination)

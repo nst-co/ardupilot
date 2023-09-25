@@ -189,9 +189,6 @@ void AR_WPNav::update(float dt)
 
     update_distance_and_bearing_to_destination();
 
-    // run path planning around obstacles
-    bool stop_vehicle = false;
-
     // check if vehicle has reached the destination
     if(_destination.isLastDestination){
         _radius_tmp = _radius_last;
@@ -204,15 +201,6 @@ void AR_WPNav::update(float dt)
     const bool past_wp = current_loc.past_interval_finish_line(_origin, _destination);
     if (!_reached_destination && (near_wp || past_wp)) {
        _reached_destination = true;
-    }
-
-    // handle stopping vehicle if avoidance has failed
-    if (stop_vehicle) {
-        // decelerate to speed to zero and set turn rate to zero
-        _desired_speed_limited = _atc.get_desired_speed_accel_limited(0.0f, dt);
-        _desired_lat_accel = 0.0f;
-        _desired_turn_rate_rads = 0.0f;
-        return;
     }
 
     // update_steering_and_speed
@@ -281,7 +269,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
         if (fabsf(turn_angle_cd) < 10.0f) {
             // if turning less than 0.1 degrees vehicle can continue at full speed
             // we use 0.1 degrees instead of zero to avoid divide by zero in calcs below
-            _desired_speed_final = _desired_speed;
+            _desired_speed_final = _base_speed_max;
         } else {
             // calculate maximum speed that keeps overshoot within bounds
             float overShoot_tmp = _overshoot;
@@ -289,7 +277,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
                 overShoot_tmp = _overshoot_l;
             }
             const float radius_m = fabsf(overShoot_tmp / (cosf(radians(turn_angle_cd * 0.01f)) - 1.0f));
-            _desired_speed_final = MIN(_desired_speed, safe_sqrt(_atc.get_turn_lat_accel_max() * radius_m));
+            _desired_speed_final = MIN(_base_speed_max, safe_sqrt(_atc.get_turn_lat_accel_max() * radius_m));
             // ensure speed does not fall below minimum
             apply_speed_min(_desired_speed_final);
         }
@@ -554,7 +542,7 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
 void AR_WPNav::update_desired_speed(float dt)
 {
     // accelerate desired speed towards max
-    float des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_desired_speed : _desired_speed, dt);
+    float des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
 
     // reduce speed to limit overshoot from line between origin and destination
     // calculate number of degrees vehicle must turn to face waypoint
