@@ -283,6 +283,11 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
         }
     }
 
+    // scurves used for navigation to destination
+    _nav_control_type = NavControllerType::NAV_SCURVE;
+
+    update_distance_and_bearing_to_destination();
+
     return true;
 }
 
@@ -330,8 +335,6 @@ bool AR_WPNav::set_desired_location_NED(const Vector3f &destination, const Vecto
 // Note: object avoidance is not supported if this method is used
 bool AR_WPNav::set_desired_location_expect_fast_update(const Location &destination)
 {
-    return false;
-/*
     // initialise if not active
     if (!is_active() || (_nav_control_type != NavControllerType::NAV_PSC_INPUT_SHAPING)) {
         if (!set_origin_and_destination_to_stopping_point()) {
@@ -353,7 +356,6 @@ bool AR_WPNav::set_desired_location_expect_fast_update(const Location &destinati
     // position controller input shaping used for navigation to destination
     _nav_control_type = NavControllerType::NAV_PSC_INPUT_SHAPING;
     return true;
-*/
 }
 
 // calculate vehicle stopping point using current location, velocity and maximum acceleration
@@ -448,13 +450,7 @@ void AR_WPNav::advance_wp_target_along_track(const Location &current_loc, float 
             _reached_destination = true;
         } else {
             // regular waypoints also require the vehicle to be within the waypoint radius or past the "finish line"
-            //const bool near_wp = current_loc.get_distance(_destination) <= _radius;
-            if(_destination.isLastDestination){
-                _radius_tmp = _radius_last;
-            }else{
-                _radius_tmp = _radius;
-            }
-            const bool near_wp = _distance_to_destination <= _radius_tmp;
+            const bool near_wp = current_loc.get_distance(_destination) <= _radius;
             const bool past_wp = current_loc.past_interval_finish_line(_origin, _destination);
             _reached_destination = near_wp || past_wp;
         }
@@ -598,26 +594,30 @@ void AR_WPNav::apply_speed_min(float &desired_speed) const
     desired_speed = MAX(desired_speed, _speed_min);
 }
 
-// calculate the crosstrack error (does not rely on L1 controller)
+// calculate the crosstrack error
 float AR_WPNav::calc_crosstrack_error(const Location& current_loc) const
 {
     if (!_orig_and_dest_valid) {
         return 0.0f;
     }
 
-    // calculate the NE position of destination relative to origin
-    Vector2f dest_from_origin = _origin.get_distance_NE(_destination);
+    // get object avoidance adjusted origin and destination
+    const Location &orig = get_oa_origin();
+    const Location &dest = get_oa_destination();
 
-    // return distance to origin if length of track is very small
+    // calculate the NE position of destination relative to origin
+    Vector2f dest_from_origin = orig.get_distance_NE(dest);
+
+    // return distance to destination if length of track is very small
     if (dest_from_origin.length() < 1.0e-6f) {
-        return current_loc.get_distance_NE(_destination).length();
+        return current_loc.get_distance_NE(dest).length();
     }
 
     // convert to a vector indicating direction only
     dest_from_origin.normalize();
 
     // calculate the NE position of the vehicle relative to origin
-    const Vector2f veh_from_origin = _origin.get_distance_NE(current_loc);
+    const Vector2f veh_from_origin = orig.get_distance_NE(current_loc);
 
     // calculate distance to target track, for reporting
     return veh_from_origin % dest_from_origin;
