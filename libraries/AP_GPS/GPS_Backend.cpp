@@ -13,6 +13,10 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AP_GPS_config.h"
+
+#if AP_GPS_ENABLED
+
 #include "AP_GPS.h"
 #include "GPS_Backend.h"
 #include <AP_Logger/AP_Logger.h>
@@ -437,6 +441,21 @@ good_yaw:
 }
 #endif // GPS_MOVING_BASELINE
 
+/*
+  set altitude in location structure, honouring the driver option for
+  MSL vs ellipsoid height
+ */
+void AP_GPS_Backend::set_alt_amsl_cm(AP_GPS::GPS_State &_state, int32_t alt_amsl_cm)
+{
+    if (option_set(AP_GPS::HeightEllipsoid) && _state.have_undulation) {
+        // user has asked ArduPilot to use ellipsoid height in the
+        // canonical height for mission and navigation
+        _state.location.alt = alt_amsl_cm - _state.undulation*100;
+    } else {
+        _state.location.alt = alt_amsl_cm;
+    }
+}
+
 #if AP_GPS_DEBUG_LOGGING_ENABLED
 
 /*
@@ -509,3 +528,5 @@ void AP_GPS_Backend::logging_start(void)
     logging_loop();
 }
 #endif // AP_GPS_DEBUG_LOGGING_ENABLED
+
+#endif  // AP_GPS_ENABLED

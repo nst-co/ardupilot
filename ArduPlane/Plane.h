@@ -91,7 +91,10 @@
 #include "GCS_Mavlink.h"
 #include "GCS_Plane.h"
 #include "quadplane.h"
+#include <AP_Tuning/AP_Tuning_config.h>
+#if AP_TUNING_ENABLED
 #include "tuning.h"
+#endif
 
 // Configuration
 #include "config.h"
@@ -553,8 +556,7 @@ private:
         float target_heading_accel_limit;
         uint32_t target_heading_time_ms;
         guided_heading_type_t target_heading_type;
-        bool target_heading_limit_low;
-        bool target_heading_limit_high;
+        bool target_heading_limit;
 #endif // OFFBOARD_GUIDED == ENABLED
     } guided_state;
 
@@ -793,8 +795,10 @@ private:
     QuadPlane quadplane{ahrs};
 #endif
 
+#if AP_TUNING_ENABLED
     // support for transmitter tuning
     AP_Tuning_Plane tuning;
+#endif
 
     static const struct LogStructure log_structure[];
 
