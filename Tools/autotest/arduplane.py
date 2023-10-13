@@ -4983,6 +4983,48 @@ class AutoTestPlane(AutoTest):
 
         self.fly_home_land_and_disarm()
 
+    def start_flying_simple_rehome_mission(self, items):
+        '''uploads items, changes mode to auto, waits ready to arm and arms
+        vehicle.  If the first item it a takeoff you can expect the
+        vehicle to fly after this method returns
+        '''
+
+        self.upload_simple_relhome_mission(items)
+
+        self.change_mode('AUTO')
+        self.wait_ready_to_arm()
+
+        self.arm_vehicle()
+
+    def InteractTest(self):
+        '''just takeoff'''
+
+        if self.mavproxy is None:
+            raise NotAchievedException("Must be started with --map")
+
+        self.start_flying_simple_rehome_mission([
+            (mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 30),
+            (mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 800, 0, 0),
+            (mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 800, 800, 0),
+            (mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 400, 0),
+        ])
+
+        self.wait_current_waypoint(4)
+
+        self.set_parameter('SIM_SPEEDUP', 1)
+
+        self.mavproxy.interact()
+
+    def MAV_CMD_MISSION_START(self):
+        '''test MAV_CMD_MISSION_START starts AUTO'''
+        self.upload_simple_relhome_mission([
+            (mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 800, 0, 0),
+        ])
+        for run_cmd in self.run_cmd, self.run_cmd_int:
+            self.change_mode('LOITER')
+            run_cmd(mavutil.mavlink.MAV_CMD_MISSION_START)
+            self.wait_mode('AUTO')
+
     def tests(self):
         '''return list of all tests'''
         ret = super(AutoTestPlane, self).tests()
@@ -5081,10 +5123,13 @@ class AutoTestPlane(AutoTest):
             self.MAV_CMD_DO_GO_AROUND,
             self.MAV_CMD_DO_FLIGHTTERMINATION,
             self.MAV_CMD_DO_LAND_START,
+            self.InteractTest,
+            self.MAV_CMD_MISSION_START,
         ])
         return ret
 
     def disabled_tests(self):
         return {
             "LandingDrift": "Flapping test. See https://github.com/ArduPilot/ardupilot/issues/20054",
+            "InteractTest": "requires user interaction",
         }
