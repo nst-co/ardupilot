@@ -151,6 +151,13 @@ void AR_WPNav::init(float speed_max)
     // initialise position controller
     _pos_control.set_limits(_base_speed_max, accel_max, _atc.get_turn_lat_accel_max(), jerk_max);
 
+/*
+    _scurve_prev_leg.init();
+    _scurve_this_leg.init();
+    _scurve_next_leg.init();
+    _track_scalar_dt = 1.0f;
+*/
+
     // init some flags
     _reached_destination = false;
     _fast_waypoint = false;
@@ -188,6 +195,23 @@ void AR_WPNav::update(float dt)
     _last_update_ms = AP_HAL::millis();
 
     update_distance_and_bearing_to_destination();
+
+/*
+    // handle change in max speed
+    update_speed_max();
+
+    // advance target along path unless vehicle is pivoting
+    if (!_pivot.active()) {
+        switch (_nav_control_type) {
+        case NavControllerType::NAV_SCURVE:
+            advance_wp_target_along_track(current_loc, dt);
+            break;
+        case NavControllerType::NAV_PSC_INPUT_SHAPING:
+            update_psc_input_shaping(dt);
+            break;
+        }
+    }
+*/
 
     // check if vehicle has reached the destination
     if(_destination.isLastDestination){
@@ -237,6 +261,22 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
         next_leg_bearing_cd = current_loc.get_bearing_to(next_destination);
     }
 
+/*
+    // re-initialise if inactive, previous destination has been interrupted or different controller was used
+    if (!is_active() || !_reached_destination || (_nav_control_type != NavControllerType::NAV_SCURVE)) {
+        if (!set_origin_and_destination_to_stopping_point()) {
+            return false;
+        }
+        // clear scurves
+        _scurve_prev_leg.init();
+        _scurve_this_leg.init();
+        _scurve_next_leg.init();
+    }
+
+    // shift this leg to previous leg
+    _scurve_prev_leg = _scurve_this_leg;
+*/
+
     // set origin to last destination if waypoint controller active
     if (is_active() && _orig_and_dest_valid && _reached_destination) {
         _origin = _destination;
@@ -248,6 +288,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
     }
 
     // initialise some variables
+    //_origin = _destination;
     _destination = destination;
     _orig_and_dest_valid = true;
     _reached_destination = false;
@@ -261,6 +302,65 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
         _pivot.check_activation((_reversed ? wrap_360_cd(oa_wp_bearing_cd() + 18000) : oa_wp_bearing_cd()) * 0.01, _pivot_at_next_wp);
     }
 
+/*
+    // convert origin and destination to offset from EKF origin
+    Vector2f origin_NE;
+    Vector2f destination_NE;
+    if (!_origin.get_vector_xy_from_origin_NE(origin_NE) ||
+        !_destination.get_vector_xy_from_origin_NE(destination_NE)) {
+        INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+        return false;
+    }
+    origin_NE *= 0.01f;
+    destination_NE *= 0.01f;
+
+    // calculate track to destination
+    if (_fast_waypoint && !_scurve_next_leg.finished()) {
+        // skip recalculating this leg by simply shifting next leg
+        _scurve_this_leg = _scurve_next_leg;
+    } else {
+        _scurve_this_leg.calculate_track(Vector3f{origin_NE.x, origin_NE.y, 0.0f},              // origin
+                                         Vector3f{destination_NE.x, destination_NE.y, 0.0f},    // destination
+                                         _pos_control.get_speed_max(),
+                                         _pos_control.get_speed_max(),  // speed up (not used)
+                                         _pos_control.get_speed_max(),  // speed down (not used)
+                                         _pos_control.get_accel_max(),  // forward back acceleration
+                                         _pos_control.get_accel_max(),  // vertical accel (not used)
+                                         AR_WPNAV_SNAP_MAX,             // snap
+                                         _pos_control.get_jerk_max());
+    }
+
+    // handle next destination
+    _scurve_next_leg.init();
+    _fast_waypoint = false;
+    _pivot_at_next_wp = false;
+    if (next_destination.initialised()) {
+        // check if vehicle should pivot at next waypoint
+        const float next_wp_yaw_change = get_corner_angle(_origin, destination, next_destination);
+        _pivot_at_next_wp = _pivot.would_activate(next_wp_yaw_change);
+        if (!_pivot_at_next_wp) {
+            // convert next_destination to offset from EKF origin
+            Vector2f next_destination_NE;
+            if (!next_destination.get_vector_xy_from_origin_NE(next_destination_NE)) {
+                INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+                return false;
+            }
+            next_destination_NE *= 0.01f;
+            _scurve_next_leg.calculate_track(Vector3f{destination_NE.x, destination_NE.y, 0.0f},
+                                             Vector3f{next_destination_NE.x, next_destination_NE.y, 0.0f},
+                                             _pos_control.get_speed_max(),
+                                             _pos_control.get_speed_max(),  // speed up (not used)
+                                             _pos_control.get_speed_max(),  // speed down (not used)
+                                             _pos_control.get_accel_max(),  // forward back acceleration
+                                             _pos_control.get_accel_max(),  // vertical accel (not used)
+                                             AR_WPNAV_SNAP_MAX,             // snap
+                                             _pos_control.get_jerk_max());
+
+            // next destination provided so fast waypoint
+            _fast_waypoint = true;
+        }
+    }
+*/
     // set final desired speed and whether vehicle should pivot
     _desired_speed_final = 0.0f;
     if (!is_equal(next_leg_bearing_cd, AR_WPNAV_HEADING_UNKNOWN)) {
@@ -511,6 +611,14 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
         _desired_lat_accel = 0.0f;
         return;
     }
+
+/*
+    _pos_control.set_reversed(_reversed);
+    _pos_control.update(dt);
+    _desired_speed_limited = _pos_control.get_desired_speed();
+    _desired_turn_rate_rads = _pos_control.get_desired_turn_rate_rads();
+    _desired_lat_accel = _pos_control.get_desired_lat_accel();
+*/
 
     float current_speed;
     _atc.get_forward_speed(current_speed);
