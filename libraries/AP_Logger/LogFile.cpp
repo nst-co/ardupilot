@@ -248,6 +248,7 @@ void AP_Logger::Write_RCOUT(void)
 
 }
 
+#if AP_RSSI_ENABLED
 // Write an RSSI packet
 void AP_Logger::Write_RSSI()
 {
@@ -264,6 +265,7 @@ void AP_Logger::Write_RSSI()
     };
     WriteBlock(&pkt, sizeof(pkt));
 }
+#endif
 
 void AP_Logger::Write_Command(const mavlink_command_int_t &packet,
                               uint8_t source_system,
@@ -496,6 +498,7 @@ void AP_Logger::Write_PID(uint8_t msg_type, const AP_PIDInfo &info)
         I               : info.I,
         D               : info.D,
         FF              : info.FF,
+        DFF             : info.DFF,
         Dmod            : info.Dmod,
         slew_rate       : info.slew_rate,
         flags           : flags

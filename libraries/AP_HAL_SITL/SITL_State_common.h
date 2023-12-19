@@ -10,12 +10,15 @@
 
 #include <SITL/SIM_Gimbal.h>
 #include <SITL/SIM_ADSB.h>
+#include <SITL/SIM_ADSB_Sagetech_MXS.h>
+#include <SITL/SIM_EFI_Hirth.h>
 #include <SITL/SIM_Vicon.h>
 #include <SITL/SIM_RF_Benewake_TF02.h>
 #include <SITL/SIM_RF_Benewake_TF03.h>
 #include <SITL/SIM_RF_Benewake_TFmini.h>
 #include <SITL/SIM_RF_NoopLoop.h>
 #include <SITL/SIM_RF_TeraRanger_Serial.h>
+#include <SITL/SIM_RF_JRE.h>
 #include <SITL/SIM_RF_LightWareSerial.h>
 #include <SITL/SIM_RF_LightWareSerialBinary.h>
 #include <SITL/SIM_RF_Lanbao.h>
@@ -31,6 +34,7 @@
 #include <SITL/SIM_RF_GYUS42v2.h>
 #include <SITL/SIM_VectorNav.h>
 #include <SITL/SIM_MicroStrain.h>
+#include <SITL/SIM_InertialLabs.h>
 #include <SITL/SIM_AIS.h>
 #include <SITL/SIM_GPS.h>
 
@@ -112,6 +116,10 @@ public:
     SITL::ADSB *adsb;
 #endif
 
+#if AP_SIM_ADSB_SAGETECH_MXS_ENABLED
+    SITL::ADSB_Sagetech_MXS *sagetech_mxs;
+#endif
+
 #if !defined(HAL_BUILD_AP_PERIPH)
     // simulated vicon system:
     SITL::Vicon *vicon;
@@ -121,6 +129,8 @@ public:
     SITL::RF_Benewake_TF02 *benewake_tf02;
     // simulated Benewake tf03 rangefinder:
     SITL::RF_Benewake_TF03 *benewake_tf03;
+    //simulated JAE JRE rangefinder:
+    SITL::RF_JRE *jre;
     // simulated Benewake tfmini rangefinder:
     SITL::RF_Benewake_TFmini *benewake_tfmini;
     //simulated NoopLoop TOFSense rangefinder:
@@ -188,9 +198,15 @@ public:
     // simulated VectorNav system:
     SITL::VectorNav *vectornav;
 
-    // simulated LORD MicroStrain system
+    // simulated MicroStrain system
     SITL::MicroStrain5 *microstrain5;
 
+    // simulated MicroStrain system
+    SITL::MicroStrain7 *microstrain7;
+
+    // simulated InertialLabs INS
+    SITL::InertialLabs *inertiallabs;
+    
 #if HAL_SIM_JSON_MASTER_ENABLED
     // Ride along instances via JSON SITL backend
     SITL::JSON_Master ride_along;
@@ -203,6 +219,9 @@ public:
 
     // simulated EFI MegaSquirt device:
     SITL::EFI_MegaSquirt *efi_ms;
+
+    // simulated EFI MegaSquirt device:
+    SITL::EFI_Hirth *efi_hirth;
 
     // output socket for flightgear viewing
     SocketAPM fg_socket{true};

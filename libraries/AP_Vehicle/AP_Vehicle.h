@@ -14,6 +14,10 @@
  */
 #pragma once
 
+#include "AP_Vehicle_config.h"
+
+#if AP_VEHICLE_ENABLED
+
 /*
   this header holds a parameter structure for each vehicle type for
   parameters needed by multiple libraries
@@ -62,6 +66,7 @@
 #include <AP_CheckFirmware/AP_CheckFirmware.h>
 #include <Filter/LowPassFilter.h>
 #include <AP_KDECAN/AP_KDECAN.h>
+#include <Filter/AP_Filter.h>
 
 class AP_DDS_Client;
 
@@ -300,7 +305,10 @@ protected:
 #endif
     RangeFinder rangefinder;
 
+#if AP_RSSI_ENABLED
     AP_RSSI rssi;
+#endif
+
 #if HAL_RUNCAM_ENABLED
     AP_RunCam runcam;
 #endif
@@ -469,6 +477,9 @@ private:
     uint32_t _last_internal_errors;  // backup of AP_InternalError::internal_errors bitmask
 
     AP_CustomRotations custom_rotations;
+#if AP_FILTER_ENABLED
+    AP_Filters filters;
+#endif
 
     // Bitmask of modes to disable from gcs
     AP_Int32 flight_mode_GCS_block;
@@ -483,3 +494,5 @@ extern const AP_HAL::HAL& hal;
 extern const AP_Param::Info vehicle_var_info[];
 
 #include "AP_Vehicle_Type.h"
+
+#endif  // AP_VEHICLE_ENABLED

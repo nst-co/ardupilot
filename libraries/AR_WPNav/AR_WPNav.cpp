@@ -18,6 +18,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include "AR_WPNav.h"
 #include <GCS_MAVLink/GCS.h>
+#include <AP_InternalError/AP_InternalError.h>
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <stdio.h>
@@ -602,6 +603,10 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
 {
     _cross_track_error = calc_crosstrack_error(current_loc);
 
+    // update position controller
+    _pos_control.set_reversed(_reversed);
+    _pos_control.update(dt);
+
     // handle pivot turns
     if (_pivot.active()) {
         // decelerate to zero
@@ -609,35 +614,32 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
         _desired_heading_cd = _reversed ? wrap_360_cd(oa_wp_bearing_cd() + 18000) : oa_wp_bearing_cd();
         _desired_turn_rate_rads = is_zero(_desired_speed_limited) ? _pivot.get_turn_rate_rads(_desired_heading_cd * 0.01, dt) : 0;
         _desired_lat_accel = 0.0f;
-        return;
+    } else {
+        /*
+        _desired_speed_limited = _pos_control.get_desired_speed();
+        _desired_turn_rate_rads = _pos_control.get_desired_turn_rate_rads();
+        _desired_lat_accel = _pos_control.get_desired_lat_accel();
+        */
+
+        float current_speed;
+        _atc.get_forward_speed(current_speed);
+        // run L1 controller
+        _nav_controller.set_reverse(_reversed);
+        _nav_controller.update_waypoint(_reached_destination ? current_loc : _origin, _destination, _radius_tmp);
+
+        // retrieve lateral acceleration, heading back towards line and crosstrack error
+        _desired_lat_accel = constrain_float(_nav_controller.lateral_acceleration(), -_atc.get_turn_lat_accel_max(), _atc.get_turn_lat_accel_max());
+        _desired_heading_cd = wrap_360_cd(_nav_controller.nav_bearing_cd());
+        if (_reversed) {
+            _desired_lat_accel *= -1.0f;
+            _desired_heading_cd = wrap_360_cd(_desired_heading_cd + 18000);
+        }
+        _cross_track_error = _nav_controller.crosstrack_error();
+        _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, current_speed);
+
+        // calculate desired speed
+        update_desired_speed(dt);
     }
-
-/*
-    _pos_control.set_reversed(_reversed);
-    _pos_control.update(dt);
-    _desired_speed_limited = _pos_control.get_desired_speed();
-    _desired_turn_rate_rads = _pos_control.get_desired_turn_rate_rads();
-    _desired_lat_accel = _pos_control.get_desired_lat_accel();
-*/
-
-    float current_speed;
-    _atc.get_forward_speed(current_speed);
-    // run L1 controller
-    _nav_controller.set_reverse(_reversed);
-    _nav_controller.update_waypoint(_reached_destination ? current_loc : _origin, _destination, _radius_tmp);
-
-    // retrieve lateral acceleration, heading back towards line and crosstrack error
-    _desired_lat_accel = constrain_float(_nav_controller.lateral_acceleration(), -_atc.get_turn_lat_accel_max(), _atc.get_turn_lat_accel_max());
-    _desired_heading_cd = wrap_360_cd(_nav_controller.nav_bearing_cd());
-    if (_reversed) {
-        _desired_lat_accel *= -1.0f;
-        _desired_heading_cd = wrap_360_cd(_desired_heading_cd + 18000);
-    }
-    _cross_track_error = _nav_controller.crosstrack_error();
-    _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, current_speed);
-
-    // calculate desired speed
-    update_desired_speed(dt);
 }
 
 // calculated desired speed(in m/s) based on yaw error and lateral acceleration and/or distance to a waypoint

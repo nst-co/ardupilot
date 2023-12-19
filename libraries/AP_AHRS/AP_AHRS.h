@@ -151,6 +151,9 @@ public:
     // if we have an estimate
     bool airspeed_estimate(float &airspeed_ret, AirspeedEstimateType &type) const;
 
+    // return true if the current AHRS airspeed estimate (from airspeed_estimate method) is directly derived from an airspeed sensor
+    bool using_airspeed_sensor() const;
+
     // return a true airspeed estimate (navigation airspeed) if
     // available. return true if we have an estimate
     bool airspeed_estimate_true(float &airspeed_ret) const;
@@ -163,12 +166,13 @@ public:
     // returns false if the data is unavailable
     bool airspeed_health_data(float &innovation, float &innovationVariance, uint32_t &age_ms) const;
 
-    // return true if airspeed comes from an airspeed sensor, as
-    // opposed to an IMU estimate
-    bool airspeed_sensor_enabled(void) const;
+    // return true if a airspeed sensor is enabled
+    bool airspeed_sensor_enabled(void) const {
+        // FIXME: make this a method on the active backend
+        return AP_AHRS_Backend::airspeed_sensor_enabled();
+    }
 
-    // return true if airspeed comes from a specific airspeed sensor, as
-    // opposed to an IMU estimate
+    // return true if a airspeed from a specific airspeed sensor is enabled
     bool airspeed_sensor_enabled(uint8_t airspeed_index) const {
         // FIXME: make this a method on the active backend
         return AP_AHRS_Backend::airspeed_sensor_enabled(airspeed_index);
@@ -417,6 +421,29 @@ public:
         return _ekf_type;
     }
 
+    enum class EKFType : uint8_t {
+#if AP_AHRS_DCM_ENABLED
+        DCM = 0,
+#endif
+#if HAL_NAVEKF3_AVAILABLE
+        THREE = 3,
+#endif
+#if HAL_NAVEKF2_AVAILABLE
+        TWO = 2,
+#endif
+#if AP_AHRS_SIM_ENABLED
+        SIM = 10,
+#endif
+#if HAL_EXTERNAL_AHRS_ENABLED
+        EXTERNAL = 11,
+#endif
+    };
+
+    // set the selected ekf type, for RC aux control
+    void set_ekf_type(EKFType ahrs_type) {
+        _ekf_type.set(ahrs_type);
+    }
+    
     // these are only out here so vehicles can reference them for parameters
 #if HAL_NAVEKF2_AVAILABLE
     NavEKF2 EKF2;
@@ -664,7 +691,7 @@ private:
      */
     AP_Int8 _wind_max;
     AP_Int8 _board_orientation;
-    AP_Int8 _ekf_type;
+    AP_Enum<EKFType> _ekf_type;
 
     /*
      * DCM-backend parameters; it takes references to these
@@ -679,23 +706,6 @@ private:
     AP_Enum<GPSUse> _gps_use;
     AP_Int8 _gps_minsats;
 
-    enum class EKFType {
-#if AP_AHRS_DCM_ENABLED
-        DCM = 0,
-#endif
-#if HAL_NAVEKF3_AVAILABLE
-        THREE = 3,
-#endif
-#if HAL_NAVEKF2_AVAILABLE
-        TWO = 2,
-#endif
-#if AP_AHRS_SIM_ENABLED
-        SIM = 10,
-#endif
-#if HAL_EXTERNAL_AHRS_ENABLED
-        EXTERNAL = 11,
-#endif
-    };
     EKFType active_EKF_type(void) const { return state.active_EKF; }
 
     bool always_use_EKF() const {
@@ -909,6 +919,9 @@ private:
 
     // get current location estimate
     bool _get_location(Location &loc) const;
+
+    // return true if a airspeed sensor should be used for the AHRS airspeed estimate
+    bool _should_use_airspeed_sensor(uint8_t airspeed_index) const;
     
     /*
       update state structure
@@ -984,6 +997,15 @@ private:
     struct AP_AHRS_Backend::Estimates external_estimates;
 #endif
 
+    enum class Options : uint16_t {
+        DISABLE_DCM_FALLBACK_FW=(1U<<0),
+        DISABLE_DCM_FALLBACK_VTOL=(1U<<1),
+    };
+    AP_Int16 _options;
+    
+    bool option_set(Options option) const {
+        return (_options & uint16_t(option)) != 0;
+    }
 };
 
 namespace AP {

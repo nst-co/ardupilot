@@ -494,11 +494,6 @@ private:
         // have we checked for an auto-land?
         bool checked_for_autoland;
 
-        // Altitude threshold to complete a takeoff command in autonomous modes.  Centimeters
-        // are we in idle mode? used for balloon launch to stop servo
-        // movement until altitude is reached
-        bool idle_mode;
-
         // are we in VTOL mode in AUTO?
         bool vtol_mode;
 
@@ -591,10 +586,12 @@ private:
     // this controls throttle suppression in auto modes
     bool throttle_suppressed;
 
+#if AP_BATTERY_WATT_MAX_ENABLED
     // reduce throttle to eliminate battery over-current
     int8_t  throttle_watt_limit_max;
     int8_t  throttle_watt_limit_min; // for reverse thrust
     uint32_t throttle_watt_limit_timer_ms;
+#endif
 
     AP_FixedWing::FlightStage flight_stage = AP_FixedWing::FlightStage::NORMAL;
 
@@ -735,6 +732,9 @@ private:
         // are we trying to follow terrain?
         bool terrain_following;
 
+        // are we waiting to load terrain data to init terrain following
+        bool terrain_following_pending;
+
         // target altitude above terrain in cm, valid if terrain_following
         // is set
         int32_t terrain_alt_cm;
@@ -855,7 +855,7 @@ private:
     void reset_offset_altitude(void);
     void set_offset_altitude_location(const Location &start_loc, const Location &destination_loc);
     bool above_location_current(const Location &loc);
-    void setup_terrain_target_alt(Location &loc) const;
+    void setup_terrain_target_alt(Location &loc);
     int32_t adjusted_altitude_cm(void);
     int32_t adjusted_relative_altitude_cm(void);
     float mission_alt_offset(void);
@@ -927,7 +927,6 @@ private:
     void do_loiter_unlimited(const AP_Mission::Mission_Command& cmd);
     void do_loiter_turns(const AP_Mission::Mission_Command& cmd);
     void do_loiter_time(const AP_Mission::Mission_Command& cmd);
-    void do_altitude_wait(const AP_Mission::Mission_Command& cmd);
     void do_continue_and_change_alt(const AP_Mission::Mission_Command& cmd);
     void do_loiter_to_alt(const AP_Mission::Mission_Command& cmd);
     void do_vtol_takeoff(const AP_Mission::Mission_Command& cmd);
@@ -1092,7 +1091,8 @@ private:
     // servos.cpp
     void set_servos_idle(void);
     void set_servos();
-    void set_servos_controlled(void);
+    void set_throttle(void);
+    void set_takeoff_expected(void);
     void set_servos_old_elevons(void);
     void set_servos_flaps(void);
     void set_landing_gear(void);

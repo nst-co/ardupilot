@@ -539,7 +539,7 @@ def start_SITL(binary,
         if unhide_parameters:
             cmd.extend(['--unhide-groups'])
         # somewhere for MAVProxy to connect to:
-        cmd.append('--uartC=tcp:2')
+        cmd.append('--serial1=tcp:2')
         if not enable_fgview_output:
             cmd.append("--disable-fgview")
 
@@ -813,6 +813,14 @@ def load_local_module(fname):
         import imp
         ret = imp.load_source("local_module", fname)
     return ret
+
+
+def get_git_hash(short=False):
+    short_v = "--short=8 " if short else ""
+    githash = run_cmd(f'git rev-parse {short_v}HEAD', output=True, directory=reltopdir('.')).strip()
+    if sys.version_info.major >= 3:
+        githash = githash.decode('utf-8')
+    return githash
 
 
 if __name__ == "__main__":

@@ -8,7 +8,11 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
     // default to non-VTOL loiter
     auto_state.vtol_loiter = false;
 
-        // log when new commands start
+#if AP_TERRAIN_AVAILABLE
+    plane.target_altitude.terrain_following_pending = false;
+#endif
+
+    // log when new commands start
     if (should_log(MASK_LOG_CMD)) {
         logger.Write_Mission_Cmd(mission, cmd);
     }
@@ -19,9 +23,6 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
         // except in a takeoff
         auto_state.takeoff_complete = true;
 
-        // start non-idle
-        auto_state.idle_mode = false;
-        
         nav_controller->set_data_is_stale();
 
         // reset loiter start time. New command is a new loiter
@@ -89,7 +90,6 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
         break;
 
     case MAV_CMD_NAV_ALTITUDE_WAIT:
-        do_altitude_wait(cmd);
         break;
 
 #if HAL_QUADPLANE_ENABLED
@@ -195,7 +195,8 @@ bool Plane::start_command(const AP_Mission::Mission_Command& cmd)
     case MAV_CMD_DO_ENGINE_CONTROL:
         plane.g2.ice_control.engine_control(cmd.content.do_engine_control.start_control,
                                             cmd.content.do_engine_control.cold_start,
-                                            cmd.content.do_engine_control.height_delay_cm*0.01f);
+                                            cmd.content.do_engine_control.height_delay_cm*0.01f,
+                                            cmd.content.do_engine_control.allow_disarmed_start);
         break;
 #endif
 
@@ -347,6 +348,7 @@ void Plane::do_RTL(int32_t rtl_altitude_AMSL_cm)
     next_WP_loc = calc_best_rally_or_home_location(current_loc, rtl_altitude_AMSL_cm);
     setup_terrain_target_alt(next_WP_loc);
     set_target_altitude_location(next_WP_loc);
+    plane.altitude_error_cm = calc_altitude_error_cm();
 
     if (aparm.loiter_radius < 0) {
         loiter.direction = -1;
@@ -512,12 +514,6 @@ void Plane::do_continue_and_change_alt(const AP_Mission::Mission_Command& cmd)
     next_WP_loc.alt = cmd.content.location.alt + home.alt;
     condition_value = cmd.p1;
     reset_offset_altitude();
-}
-
-void Plane::do_altitude_wait(const AP_Mission::Mission_Command& cmd)
-{
-    // set all servos to trim until we reach altitude or descent speed
-    auto_state.idle_mode = true;
 }
 
 void Plane::do_loiter_to_alt(const AP_Mission::Mission_Command& cmd)

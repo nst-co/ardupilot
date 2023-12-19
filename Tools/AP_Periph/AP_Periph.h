@@ -26,7 +26,6 @@
 #include <AP_Scripting/AP_Scripting.h>
 #include <AP_HAL/CANIface.h>
 #include <AP_Stats/AP_Stats.h>
-#include <AP_Networking/AP_Networking.h>
 #include <AP_RPM/AP_RPM.h>
 #include <AP_SerialManager/AP_SerialManager.h>
 #include <AP_ESC_Telem/AP_ESC_Telem_config.h>
@@ -36,6 +35,7 @@
 #include <AP_RCProtocol/AP_RCProtocol_config.h>
 #include "rc_in.h"
 #include "batt_balance.h"
+#include "networking.h"
 
 #include <AP_NMEA_Output/AP_NMEA_Output.h>
 #if HAL_NMEA_OUTPUT_ENABLED && !(HAL_GCS_ENABLED && defined(HAL_PERIPH_ENABLE_GPS))
@@ -74,6 +74,15 @@
 
 #ifndef HAL_PERIPH_CAN_MIRROR
 #define HAL_PERIPH_CAN_MIRROR 0
+#endif
+
+#if defined(HAL_PERIPH_LISTEN_FOR_SERIAL_UART_REBOOT_CMD_PORT) && !defined(HAL_DEBUG_BUILD) && !defined(HAL_PERIPH_LISTEN_FOR_SERIAL_UART_REBOOT_NON_DEBUG)
+/* this checking for reboot can lose bytes on GPS modules and other
+ * serial devices. It is really only relevent on a debug build if you
+ * really want it for non-debug build then define
+ * HAL_PERIPH_LISTEN_FOR_SERIAL_UART_REBOOT_NON_DEBUG in hwdef.dat
+ */
+#undef HAL_PERIPH_LISTEN_FOR_SERIAL_UART_REBOOT_CMD_PORT
 #endif
 
 #include "Parameters.h"
@@ -356,7 +365,7 @@ public:
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_NETWORKING
-    AP_Networking networking;
+    Networking_Periph networking_periph;
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_RTC
@@ -371,13 +380,26 @@ public:
 
     static const AP_Param::Info var_info[];
 
+#ifdef HAL_PERIPH_ENABLE_EFI
+    uint32_t last_efi_update_ms;
+#endif
+#ifdef HAL_PERIPH_ENABLE_MAG
     uint32_t last_mag_update_ms;
+#endif
+#ifdef HAL_PERIPH_ENABLE_GPS
     uint32_t last_gps_update_ms;
     uint32_t last_gps_yaw_ms;
+#endif
     uint32_t last_relposheading_ms;
+#ifdef HAL_PERIPH_ENABLE_BARO
     uint32_t last_baro_update_ms;
+#endif
+#ifdef HAL_PERIPH_ENABLE_AIRSPEED
     uint32_t last_airspeed_update_ms;
+#endif
+#ifdef HAL_PERIPH_ENABLE_GPS
     bool saw_gps_lock_once;
+#endif
 
     static AP_Periph_FW *_singleton;
 

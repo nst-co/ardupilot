@@ -122,6 +122,10 @@
 #define AP_BATTERY_ESC_ENABLED 0
 #endif
 
+#ifndef AP_BATTERY_WATT_MAX_ENABLED
+#define AP_BATTERY_WATT_MAX_ENABLED 0
+#endif
+
 // disable compass calibrations on periphs; cal is done on the autopilot
 #ifndef COMPASS_CAL_ENABLED
 #define COMPASS_CAL_ENABLED 0
@@ -351,4 +355,44 @@
 // up with a bricked node if you write a bad firmware to it.
 #ifndef AP_HAL_CHIBIOS_IN_EXPECTED_DELAY_WHEN_NOT_INITIALISED
 #define AP_HAL_CHIBIOS_IN_EXPECTED_DELAY_WHEN_NOT_INITIALISED 0
+#endif
+
+#ifndef AP_SERIALLED_ENABLED
+#define AP_SERIALLED_ENABLED 0
+#endif
+
+#ifndef AP_OPTICALFLOW_ENABLED
+#define AP_OPTICALFLOW_ENABLED 0
+#endif
+
+#ifndef HAL_BUTTON_ENABLED
+#define HAL_BUTTON_ENABLED 0
+#endif
+
+#ifndef AP_NOTIFY_SCRIPTING_LED_ENABLED
+#define AP_NOTIFY_SCRIPTING_LED_ENABLED 0
+#endif
+
+#ifndef AP_PARAM_DYNAMIC_ENABLED
+#define AP_PARAM_DYNAMIC_ENABLED 0
+#endif
+
+#ifndef HAL_MOUNT_ENABLED
+#define HAL_MOUNT_ENABLED 0
+#endif
+
+#ifndef AP_CAMERA_ENABLED
+#define AP_CAMERA_ENABLED 0
+#endif
+
+#ifndef AP_TERRAIN_AVAILABLE
+#define AP_TERRAIN_AVAILABLE 0
+#endif
+
+#ifndef AP_ICENGINE_ENABLED
+#define AP_ICENGINE_ENABLED 0
+#endif
+
+#ifndef AP_FILTER_ENABLED
+#define AP_FILTER_ENABLED 0
 #endif

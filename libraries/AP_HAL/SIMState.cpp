@@ -99,6 +99,7 @@ void SIMState::fdm_input_local(void)
     // ride_along.receive(input);
 
     // update the model
+    sitl_model->update_home();
     sitl_model->update_model(input);
 
     // get FDM output from the model
@@ -228,6 +229,9 @@ void SIMState::fdm_input_local(void)
 
     if (microstrain5 != nullptr) {
         microstrain5->update();
+    }
+    if (inertiallabs != nullptr) {
+        inertiallabs->update();
     }
 
 #if HAL_SIM_AIS_ENABLED
