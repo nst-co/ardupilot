@@ -18,6 +18,11 @@
  *  ArduPilot
  *
  */
+
+#include "AP_AHRS_config.h"
+
+#if AP_AHRS_ENABLED
+
 #include <AP_HAL/AP_HAL.h>
 #include "AP_AHRS.h"
 #include "AP_AHRS_View.h"
@@ -34,6 +39,9 @@
 #include <GCS_MAVLink/GCS.h>
 #include <AP_InertialSensor/AP_InertialSensor.h>
 #include <AP_CustomRotations/AP_CustomRotations.h>
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <SITL/SITL.h>
+#endif
 
 #define ATTITUDE_CHECK_THRESH_ROLL_PITCH_RAD radians(10)
 #define ATTITUDE_CHECK_THRESH_YAW_RAD radians(20)
@@ -810,6 +818,32 @@ bool AP_AHRS::_wind_estimate(Vector3f &wind) const
 #endif
     }
     return false;
+}
+
+
+/*
+ * Determine how aligned heading_deg is with the wind. Return result
+ * is 1.0 when perfectly aligned heading into wind, -1 when perfectly
+ * aligned with-wind, and zero when perfect cross-wind. There is no
+ * distinction between a left or right cross-wind. Wind speed is ignored
+ */
+float AP_AHRS::wind_alignment(const float heading_deg) const
+{
+    Vector3f wind;
+    if (!wind_estimate(wind)) {
+        return 0;
+    }
+    const float wind_heading_rad = atan2f(-wind.y, -wind.x);
+    return cosf(wind_heading_rad - radians(heading_deg));
+}
+
+/*
+ * returns forward head-wind component in m/s. Negative means tail-wind.
+ */
+float AP_AHRS::head_wind(void) const
+{
+    const float alignment = wind_alignment(yaw_sensor*0.01f);
+    return alignment * wind_estimate().xy().length();
 }
 
 /*
@@ -1948,6 +1982,7 @@ AP_AHRS::EKFType AP_AHRS::_active_EKF_type(void) const
         
         // Handle loss of global position when we still have a GPS fix
         if (hal.util->get_soft_armed() &&
+            (_gps_use != GPSUse::Disable) &&
             should_use_gps &&
             AP::gps().status() >= AP_GPS::GPS_OK_FIX_3D &&
             (!filt_state.flags.using_gps || !filt_state.flags.horiz_pos_abs)) {
@@ -3517,3 +3552,5 @@ AP_AHRS &ahrs()
 }
 
 }
+
+#endif  // AP_AHRS_ENABLED

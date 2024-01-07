@@ -156,6 +156,8 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
     if (!setup_complete) {
         return false;
     }
+    // ensure we own the uart
+    uart->begin(0);
     uint32_t n = uart->available();
     if (n == 0) {
         return false;
@@ -436,6 +438,8 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
     if (GOT_MSG(ACCEL_DATA_HR) &&
         GOT_MSG(GYRO_DATA_HR)) {
         AP::ins().handle_external(ins_data);
+        state.accel = ins_data.accel;
+        state.gyro = ins_data.gyro;
     }
     if (GOT_MSG(GPS_INS_TIME_MS) &&
         GOT_MSG(NUM_SATS) &&
