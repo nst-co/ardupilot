@@ -1484,6 +1484,10 @@ function periph:get_yaw_earth() end
 function periph:can_printf(text) end
 
 -- desc
+---@param hold_in_bootloader boolean
+function periph:reboot(hold_in_bootloader) end
+
+-- desc
 ---@class ins
 ins = {}
 
@@ -3367,3 +3371,24 @@ fs = {}
 ---@param param1 string
 ---@return stat_t_ud|nil
 function fs:stat(param1) end
+
+-- desc
+---@class networking
+networking = {}
+
+-- conver uint32_t address to string
+---@param ip4addr uint32_t_ud
+---@return string
+function networking:address_to_str(ip4addr) end
+
+-- desc
+---@return uint32_t_ud
+function networking:get_gateway_active() end
+
+-- desc
+---@return uint32_t_ud
+function networking:get_netmask_active() end
+
+-- desc
+---@return uint32_t_ud
+function networking:get_ip_active() end
