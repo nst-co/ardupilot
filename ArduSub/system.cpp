@@ -14,14 +14,8 @@ static void failsafe_check_static()
 
 void Sub::init_ardupilot()
 {
-    BoardConfig.init();
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS
     can_mgr.init();
-#endif
-
-#if STATS_ENABLED == ENABLED
-    // initialise stats module
-    g2.stats.init();
 #endif
 
     // init cargo gripper
