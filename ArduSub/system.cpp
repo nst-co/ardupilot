@@ -14,10 +14,6 @@ static void failsafe_check_static()
 
 void Sub::init_ardupilot()
 {
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
-    can_mgr.init();
-#endif
-
     // init cargo gripper
 #if AP_GRIPPER_ENABLED
     g2.gripper.init();
@@ -55,10 +51,6 @@ void Sub::init_ardupilot()
 
     // setup telem slots with serial ports
     gcs().setup_uarts();
-
-#if HAL_LOGGING_ENABLED
-    log_init();
-#endif
 
     // initialise rc channels including setting mode
     rc().convert_options(RC_Channel::AUX_FUNC::ARMDISARM_UNUSED, RC_Channel::AUX_FUNC::ARMDISARM);
@@ -160,10 +152,6 @@ void Sub::init_ardupilot()
 #endif
 
     startup_INS_ground();
-
-#if AP_SCRIPTING_ENABLED
-    g2.scripting.init();
-#endif // AP_SCRIPTING_ENABLED
 
     // enable CPU failsafe
     mainloop_failsafe_enable();

@@ -251,10 +251,6 @@ private:
     RC_Channel *channel_throttle;
     RC_Channel *channel_yaw;
 
-#if HAL_LOGGING_ENABLED
-    AP_Logger logger;
-#endif
-
     // flight modes convenience array
     AP_Int8 *flight_modes;
     const uint8_t num_flight_modes = 6;
@@ -342,6 +338,14 @@ private:
         uint32_t clear_ms;  // system time high vibrations stopped
     } vibration_check;
 
+    // EKF variances are unfiltered and are designed to recover very quickly when possible
+    // thus failsafes should be triggered on filtered values in order to avoid transient errors 
+    LowPassFilterFloat pos_variance_filt;
+    LowPassFilterFloat vel_variance_filt;
+    LowPassFilterFloat hgt_variance_filt;
+    bool variances_valid;
+    uint32_t last_ekf_check_us;
+
     // takeoff check
     uint32_t takeoff_check_warning_ms;  // system time user was last warned of takeoff check failure
 
@@ -366,7 +370,7 @@ private:
             uint8_t land_complete           : 1; // 7       // true if we have detected a landing
             uint8_t new_radio_frame         : 1; // 8       // Set true if we have new PWM data to act on from the Radio
             uint8_t usb_connected_unused    : 1; // 9       // UNUSED
-            uint8_t rc_receiver_present     : 1; // 10      // true if we have an rc receiver present (i.e. if we've ever received an update
+            uint8_t rc_receiver_present_unused : 1; // 10      // UNUSED
             uint8_t compass_mot             : 1; // 11      // true if we are currently performing compassmot calibration
             uint8_t motor_test              : 1; // 12      // true if we are currently performing the motors test
             uint8_t initialised             : 1; // 13      // true once the init_ardupilot function has completed.  Extended status to GCS is not sent until this completes
@@ -838,6 +842,13 @@ private:
     void standby_update();
 
 #if HAL_LOGGING_ENABLED
+    // methods for AP_Vehicle:
+    const AP_Int32 &get_log_bitmask() override { return g.log_bitmask; }
+    const struct LogStructure *get_log_structures() const override {
+        return log_structure;
+    }
+    uint8_t get_num_log_structures() const override;
+
     // Log.cpp
     void Log_Write_Control_Tuning();
     void Log_Write_Attitude();
@@ -858,7 +869,6 @@ private:
     void Log_Write_SysID_Setup(uint8_t systemID_axis, float waveform_magnitude, float frequency_start, float frequency_stop, float time_fade_in, float time_const_freq, float time_record, float time_fade_out);
     void Log_Write_SysID_Data(float waveform_time, float waveform_sample, float waveform_freq, float angle_x, float angle_y, float angle_z, float accel_x, float accel_y, float accel_z);
     void Log_Write_Vehicle_Startup_Messages();
-    void log_init(void);
 #endif  // HAL_LOGGING_ENABLED
 
     // mode.cpp

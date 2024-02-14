@@ -341,12 +341,6 @@ const AP_Param::Info Blimp::var_info[] = {
     // @Path: ../libraries/AP_AHRS/AP_AHRS.cpp
     GOBJECT(ahrs,                   "AHRS_",    AP_AHRS),
 
-#if HAL_LOGGING_ENABLED
-    // @Group: LOG
-    // @Path: ../libraries/AP_Logger/AP_Logger.cpp
-    GOBJECT(logger,           "LOG",  AP_Logger),
-#endif
-
     // @Group: BATT
     // @Path: ../libraries/AP_BattMonitor/AP_BattMonitor.cpp
     GOBJECT(battery,                "BATT",         AP_BattMonitor),
@@ -780,6 +774,8 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("SYSID_ENFORCE", 11, ParametersG2, sysid_enforce, 0),
 
+    // 12 was AP_Stats
+
     // @Param: FRAME_CLASS
     // @DisplayName: Frame Class
     // @Description: Controls major frame class for blimp.
@@ -805,11 +801,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("PILOT_SPEED_DN", 24, ParametersG2, pilot_speed_dn, 0),
 
-#if AP_SCRIPTING_ENABLED
-    // @Group: SCR_
-    // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
-    AP_SUBGROUPINFO(scripting, "SCR_", 30, ParametersG2, AP_Scripting),
-#endif
+    // 30 was AP_Scripting
 
     // @Param: FS_VIBE_ENABLE
     // @DisplayName: Vibration Failsafe enable
@@ -848,25 +840,7 @@ ParametersG2::ParametersG2(void)
 
 void Blimp::load_parameters(void)
 {
-    hal.util->set_soft_armed(false);
-
-    if (!g.format_version.load() ||
-        g.format_version != Parameters::k_format_version) {
-
-        // erase all parameters
-        hal.console->printf("Firmware change: erasing EEPROM...\n");
-        StorageManager::erase();
-        AP_Param::erase_all();
-
-        // save the current format version
-        g.format_version.set_and_save(Parameters::k_format_version);
-        hal.console->printf("done.\n");
-    }
-    g.format_version.set_default(Parameters::k_format_version);
-
-    uint32_t before = micros();
-    // Load all auto-loaded EEPROM variables
-    AP_Param::load_all();
+    AP_Vehicle::load_parameters(g.format_version, Parameters::k_format_version);
 
     // PARAMETER_CONVERSION - Added: Jan-2024 for Copter-4.6
 #if AP_STATS_ENABLED
@@ -882,8 +856,25 @@ void Blimp::load_parameters(void)
         AP_Param::convert_class(info.old_key, &stats, stats.var_info, old_index, old_top_element, false);
     }
 #endif
+    // PARAMETER_CONVERSION - Added: Jan-2024 for Copter-4.6
+#if AP_SCRIPTING_ENABLED
+    {
+        // Find G2's Top Level Key
+        AP_Param::ConversionInfo info;
+        if (!AP_Param::find_top_level_key_by_pointer(&g2, info.old_key)) {
+            return;
+        }
 
-    hal.console->printf("load_all took %uus\n", (unsigned)(micros() - before));
+        const uint16_t old_index = 30;       // Old parameter index in g2
+        const uint16_t old_top_element = 94; // Old group element in the tree for the first subgroup element (see AP_PARAM_KEY_DUMP)
+        AP_Param::convert_class(info.old_key, &scripting, scripting.var_info, old_index, old_top_element, false);
+    }
+#endif
+
+    // PARAMETER_CONVERSION - Added: Feb-2024
+#if HAL_LOGGING_ENABLED
+    AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, 0, true);
+#endif
 
     // setup AP_Param frame type flags
     AP_Param::set_frame_type_flags(AP_PARAM_FRAME_BLIMP);

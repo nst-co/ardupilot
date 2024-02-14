@@ -561,12 +561,6 @@ const AP_Param::Info Sub::var_info[] = {
     GOBJECT(camera_mount,           "MNT",  AP_Mount),
 #endif
 
-#if HAL_LOGGING_ENABLED
-    // @Group: LOG
-    // @Path: ../libraries/AP_Logger/AP_Logger.cpp
-    GOBJECT(logger,           "LOG",  AP_Logger),
-#endif
-
     // @Group: BATT
     // @Path: ../libraries/AP_BattMonitor/AP_BattMonitor.cpp
     GOBJECT(battery,                "BATT",         AP_BattMonitor),
@@ -690,6 +684,9 @@ const AP_Param::Info Sub::var_info[] = {
   2nd group of parameters
  */
 const AP_Param::GroupInfo ParametersG2::var_info[] = {
+
+    // 1 was AP_Stats
+
 #if HAL_PROXIMITY_ENABLED
     // @Group: PRX
     // @Path: ../libraries/AP_Proximity/AP_Proximity.cpp
@@ -710,11 +707,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Path: ../libraries/RC_Channel/RC_Channels_VarInfo.h
     AP_SUBGROUPINFO(rc_channels, "RC", 17, ParametersG2, RC_Channels),
 
-#if AP_SCRIPTING_ENABLED
-    // @Group: SCR_
-    // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
-    AP_SUBGROUPINFO(scripting, "SCR_", 18, ParametersG2, AP_Scripting),
-#endif
+    // 18 was scripting
 
     // 19 was airspeed
 
@@ -739,26 +732,8 @@ const AP_Param::ConversionInfo conversion_table[] = {
 
 void Sub::load_parameters()
 {
-    hal.util->set_soft_armed(false);
+    AP_Vehicle::load_parameters(g.format_version, Parameters::k_format_version);
 
-    if (!g.format_version.load() ||
-            g.format_version != Parameters::k_format_version) {
-
-        // erase all parameters
-        hal.console->printf("Firmware change: erasing EEPROM...\n");
-        StorageManager::erase();
-        AP_Param::erase_all();
-
-        // save the current format version
-        g.format_version.set_and_save(Parameters::k_format_version);
-        hal.console->println("done.");
-    }
-    g.format_version.set_default(Parameters::k_format_version);
-
-    uint32_t before = AP_HAL::micros();
-    // Load all auto-loaded EEPROM variables
-    AP_Param::load_all();
-    hal.console->printf("load_all took %uus\n", (unsigned)(AP_HAL::micros() - before));
     AP_Param::convert_old_parameters(&conversion_table[0], ARRAY_SIZE(conversion_table));
 
     AP_Param::set_frame_type_flags(AP_PARAM_FRAME_SUB);
@@ -800,6 +775,25 @@ void Sub::load_parameters()
         const uint16_t stats_old_top_element = 4033; // Old group element in the tree for the first subgroup element (see AP_PARAM_KEY_DUMP)
         AP_Param::convert_class(stats_info.old_key, &stats, stats.var_info, stats_old_index, stats_old_top_element, false);
     }
+#endif
+    // PARAMETER_CONVERSION - Added: Jan-2024
+#if AP_SCRIPTING_ENABLED
+    {
+        // Find G2's Top Level Key
+        AP_Param::ConversionInfo scripting_info;
+        if (!AP_Param::find_top_level_key_by_pointer(&g2, scripting_info.old_key)) {
+            return;
+        }
+
+        const uint16_t scripting_old_index = 18;       // Old parameter index in g2
+        const uint16_t scripting_old_top_element = 82; // Old group element in the tree for the first subgroup element (see AP_PARAM_KEY_DUMP)
+        AP_Param::convert_class(scripting_info.old_key, &scripting, scripting.var_info, scripting_old_index, scripting_old_top_element, false);
+    }
+#endif
+
+    // PARAMETER_CONVERSION - Added: Feb-2024
+#if HAL_LOGGING_ENABLED
+    AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, 0, true);
 #endif
 }
 

@@ -155,6 +155,9 @@ protected:
     // Helper to output to both k_rudder and k_steering servo functions
     void output_rudder_and_steering(float val);
 
+    // Output pilot throttle, this is used in stabilized modes without auto throttle control
+    void output_pilot_throttle();
+
 #if HAL_QUADPLANE_ENABLED
     // References for convenience, used by QModes
     AC_PosControl*& pos_control;
@@ -262,6 +265,8 @@ public:
     
     bool mode_allows_autotuning() const override { return true; }
 
+    void run() override;
+
 protected:
 
     bool _enter() override;
@@ -338,6 +343,7 @@ public:
     void navigate() override;
 
     bool isHeadingLinedUp(const Location loiterCenterLoc, const Location targetLoc);
+    bool isHeadingLinedUp_cd(const int32_t bearing_cd, const int32_t heading_cd);
     bool isHeadingLinedUp_cd(const int32_t bearing_cd);
 
     bool allows_throttle_nudging() const override { return true; }
@@ -492,6 +498,8 @@ public:
     void update() override;
     
     bool mode_allows_autotuning() const override { return true; }
+
+    void run() override;
 
 };
 

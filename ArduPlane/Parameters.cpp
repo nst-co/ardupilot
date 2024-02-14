@@ -908,12 +908,6 @@ const AP_Param::Info Plane::var_info[] = {
     GOBJECT(camera_mount,           "MNT",  AP_Mount),
 #endif
 
-#if HAL_LOGGING_ENABLED
-    // @Group: LOG
-    // @Path: ../libraries/AP_Logger/AP_Logger.cpp
-    GOBJECT(logger,           "LOG",  AP_Logger),
-#endif
-
     // @Group: BATT
     // @Path: ../libraries/AP_BattMonitor/AP_BattMonitor.cpp
     GOBJECT(battery,                "BATT", AP_BattMonitor),
@@ -1033,6 +1027,8 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("SYSID_ENFORCE", 4, ParametersG2, sysid_enforce, 0),
 
+    // AP_Stats was 5
+
     // @Group: SERVO
     // @Path: ../libraries/SRV_Channel/SRV_Channels.cpp
     AP_SUBGROUPINFO(servo_channels, "SERVO", 6, ParametersG2, SRV_Channels),
@@ -1098,11 +1094,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("FLIGHT_OPTIONS", 13, ParametersG2, flight_options, 0),
 
-#if AP_SCRIPTING_ENABLED
-    // @Group: SCR_
-    // @Path: ../libraries/AP_Scripting/AP_Scripting.cpp
-    AP_SUBGROUPINFO(scripting, "SCR_", 14, ParametersG2, AP_Scripting),
-#endif
+    // 14 was AP_Scripting
 
     // @Param: TKOFF_ACCEL_CNT
     // @DisplayName: Takeoff throttle acceleration count
@@ -1352,23 +1344,8 @@ static const RCConversionInfo rc_option_conversion[] = {
 
 void Plane::load_parameters(void)
 {
-    if (!g.format_version.load() ||
-        g.format_version != Parameters::k_format_version) {
+    AP_Vehicle::load_parameters(g.format_version, Parameters::k_format_version);
 
-        // erase all parameters
-        hal.console->printf("Firmware change: erasing EEPROM...\n");
-        StorageManager::erase();
-        AP_Param::erase_all();
-
-        // save the current format version
-        g.format_version.set_and_save(Parameters::k_format_version);
-        hal.console->printf("done.\n");
-    }
-    g.format_version.set_default(Parameters::k_format_version);
-
-    uint32_t before = micros();
-    // Load all auto-loaded EEPROM variables
-    AP_Param::load_all();
     AP_Param::convert_old_parameters(&conversion_table[0], ARRAY_SIZE(conversion_table));
 
     // setup defaults in SRV_Channels
@@ -1566,6 +1543,23 @@ void Plane::load_parameters(void)
         AP_Param::convert_class(info.old_key, &stats, stats.var_info, old_index, old_top_element, false);
     }
 #endif
+    // PARAMETER_CONVERSION - Added: Jan-2024 for Plane-4.6
+#if AP_SCRIPTING_ENABLED
+    {
+        // Find G2's Top Level Key
+        AP_Param::ConversionInfo info;
+        if (!AP_Param::find_top_level_key_by_pointer(&g2, info.old_key)) {
+            return;
+        }
 
-    hal.console->printf("load_all took %uus\n", (unsigned)(micros() - before));
+        const uint16_t old_index = 14;       // Old parameter index in g2
+        const uint16_t old_top_element = 78; // Old group element in the tree for the first subgroup element (see AP_PARAM_KEY_DUMP)
+        AP_Param::convert_class(info.old_key, &scripting, scripting.var_info, old_index, old_top_element, false);
+    }
+#endif
+
+    // PARAMETER_CONVERSION - Added: Feb-2024 for Copter-4.6
+#if HAL_LOGGING_ENABLED
+    AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, 0, true);
+#endif
 }

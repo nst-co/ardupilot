@@ -258,6 +258,18 @@ const AP_Param::GroupInfo AP_Vehicle::var_info[] = {
     AP_SUBGROUPINFO(stats, "STAT", 27, AP_Vehicle, AP_Stats),
 #endif
 
+#if AP_SCRIPTING_ENABLED
+    // @Group: SCR_
+    // @Path: ../AP_Scripting/AP_Scripting.cpp
+    AP_SUBGROUPINFO(scripting, "SCR_", 28, AP_Vehicle, AP_Scripting),
+#endif
+
+#if HAL_LOGGING_ENABLED
+    // @Group: LOG
+    // @Path: ../AP_Logger/AP_Logger.cpp
+    AP_SUBGROUPINFO(logger, "LOG",  29, AP_Vehicle, AP_Logger),
+#endif
+
     AP_GROUPEND
 };
 
@@ -301,6 +313,7 @@ void AP_Vehicle::setup()
     }
 #endif
 
+#if AP_SCHEDULER_ENABLED
     // initialise the main loop scheduler
     const AP_Scheduler::Task *tasks;
     uint8_t task_count;
@@ -311,6 +324,7 @@ void AP_Vehicle::setup()
     // time per loop - this gets updated in the main loop() based on
     // actual loop rate
     G_Dt = scheduler.get_loop_period_s();
+#endif
 
     // this is here for Plane; its failsafe_check method requires the
     // RC channels to be set as early as possible for maximum
@@ -360,8 +374,20 @@ void AP_Vehicle::setup()
 
     BoardConfig.init();
 
+#if HAL_CANMANAGER_ENABLED
+    can_mgr.init();
+#endif
+
+#if HAL_LOGGING_ENABLED
+    logger.init(get_log_bitmask(), get_log_structures(), get_num_log_structures());
+#endif
+
     // init_ardupilot is where the vehicle does most of its initialisation.
     init_ardupilot();
+
+#if AP_SCRIPTING_ENABLED
+    scripting.init();
+#endif // AP_SCRIPTING_ENABLED
 
 #if AP_AIRSPEED_ENABLED
     airspeed.init();
@@ -591,7 +617,9 @@ const AP_Scheduler::Task AP_Vehicle::scheduler_tasks[] = {
 #if AP_STATS_ENABLED
     SCHED_TASK_CLASS(AP_Stats,             &vehicle.stats,            update,           1, 100, 252),
 #endif
+#if AP_ARMING_ENABLED
     SCHED_TASK(update_arming,          1,     50, 253),
+#endif
 };
 
 void AP_Vehicle::get_common_scheduler_tasks(const AP_Scheduler::Task*& tasks, uint8_t& num_tasks)
@@ -678,10 +706,14 @@ void AP_Vehicle::send_watchdog_reset_statustext()
 
 bool AP_Vehicle::is_crashed() const
 {
+#if AP_ARMING_ENABLED
     if (AP::arming().is_armed()) {
         return false;
     }
     return AP::arming().last_disarm_method() == AP_Arming::Method::CRASH;
+#else
+    return false;
+#endif
 }
 
 // update the harmonic notch filter for throttle based notch
@@ -900,8 +932,13 @@ void AP_Vehicle::publish_osd_info()
 
 void AP_Vehicle::get_osd_roll_pitch_rad(float &roll, float &pitch) const
 {
+#if AP_AHRS_ENABLED
     roll = ahrs.get_roll();
     pitch = ahrs.get_pitch();
+#else
+    roll = 0.0;
+    pitch = 0.0;
+#endif
 }
 
 #if HAL_INS_ACCELCAL_ENABLED
@@ -920,11 +957,14 @@ void AP_Vehicle::accel_cal_update()
         return;
     }
     ins.acal_update();
+
+#if AP_AHRS_ENABLED
     // check if new trim values, and set them
     Vector3f trim_rad;
     if (ins.get_new_trim(trim_rad)) {
         ahrs.set_trim(trim_rad);
     }
+#endif
 
 #if HAL_CAL_ALWAYS_REBOOT
     if (ins.accel_cal_requires_reboot() &&
@@ -936,11 +976,13 @@ void AP_Vehicle::accel_cal_update()
 }
 #endif // HAL_INS_ACCELCAL_ENABLED
 
+#if AP_ARMING_ENABLED
 // call the arming library's update function
 void AP_Vehicle::update_arming()
 {
     AP::arming().update();
 }
+#endif
 
 /*
   one Hz checks common to all vehicles
@@ -972,10 +1014,7 @@ void AP_Vehicle::one_Hz_update(void)
     }
 
 #if AP_SCRIPTING_ENABLED
-    AP_Scripting *scripting = AP_Scripting::get_singleton();
-    if (scripting != nullptr) {
-        scripting->update();
-    }
+    scripting.update();
 #endif
 
 }

@@ -14,10 +14,6 @@ static void failsafe_check_static()
 
 void Rover::init_ardupilot()
 {
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
-    can_mgr.init();
-#endif
-
     // init gripper
 #if AP_GRIPPER_ENABLED
     g2.gripper.init();
@@ -46,10 +42,6 @@ void Rover::init_ardupilot()
 
 #if OSD_ENABLED == ENABLED
     osd.init();
-#endif
-
-#if HAL_LOGGING_ENABLED
-    log_init();
 #endif
 
     // initialise compass
@@ -178,10 +170,6 @@ void Rover::startup_ground(void)
         FUNCTOR_BIND(&rover, &Rover::Log_Write_Vehicle_Startup_Messages, void)
         );
 #endif
-
-#if AP_SCRIPTING_ENABLED
-    g2.scripting.init();
-#endif // AP_SCRIPTING_ENABLED
 }
 
 // update the ahrs flyforward setting which can allow

@@ -19,10 +19,6 @@ void Plane::init_ardupilot()
 
     ins.set_log_raw_bit(MASK_LOG_IMU_RAW);
 
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
-    can_mgr.init();
-#endif
-
     rollController.convert_pid();
     pitchController.convert_pid();
 
@@ -66,10 +62,6 @@ void Plane::init_ardupilot()
 
 #if OSD_ENABLED == ENABLED
     osd.init();
-#endif
-
-#if HAL_LOGGING_ENABLED
-    log_init();
 #endif
 
     AP::compass().set_log_bit(MASK_LOG_COMPASS);
@@ -179,10 +171,6 @@ void Plane::startup_ground(void)
         FUNCTOR_BIND(&plane, &Plane::Log_Write_Vehicle_Startup_Messages, void)
         );
 #endif
-
-#if AP_SCRIPTING_ENABLED
-    g2.scripting.init();
-#endif // AP_SCRIPTING_ENABLED
 
     // reset last heartbeat time, so we don't trigger failsafe on slow
     // startup

@@ -15,10 +15,6 @@ static void failsafe_check_static()
 
 void Copter::init_ardupilot()
 {
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
-    can_mgr.init();
-#endif
-
     // init cargo gripper
 #if AP_GRIPPER_ENABLED
     g2.gripper.init();
@@ -46,10 +42,6 @@ void Copter::init_ardupilot()
 
 #if OSD_ENABLED == ENABLED
     osd.init();
-#endif
-
-#if HAL_LOGGING_ENABLED
-    log_init();
 #endif
 
     // update motor interlock state
@@ -183,10 +175,6 @@ void Copter::init_ardupilot()
 
     startup_INS_ground();
 
-#if AP_SCRIPTING_ENABLED
-    g2.scripting.init();
-#endif // AP_SCRIPTING_ENABLED
-
 #if AC_CUSTOMCONTROL_MULTI_ENABLED == ENABLED
     custom_control.init();
 #endif
@@ -207,6 +195,10 @@ void Copter::init_ardupilot()
         // set mode to STABILIZE will trigger mode change notification to pilot
         set_mode(Mode::Number::STABILIZE, ModeReason::UNAVAILABLE);
     }
+
+    pos_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
+    vel_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
+    hgt_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
 
     // flag that initialisation has completed
     ap.initialised = true;
