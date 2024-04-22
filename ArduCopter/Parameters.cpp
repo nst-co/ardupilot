@@ -34,7 +34,6 @@ const AP_Param::Info Copter::var_info[] = {
     // @DisplayName: Eeprom format version number
     // @Description: This value is incremented when changes are made to the eeprom format
     // @User: Advanced
-    // @ReadOnly: True
     GSCALAR(format_version, "FORMAT_VERSION",   0),
 
     // @Param: SYSID_THISMAV
@@ -78,9 +77,7 @@ const AP_Param::Info Copter::var_info[] = {
     // @Bitmask: 0:Feedback from mid stick,1:High throttle cancels landing,2:Disarm on land detection
     GSCALAR(throttle_behavior, "PILOT_THR_BHV", 0),
 
-    // @Group: SERIAL
-    // @Path: ../libraries/AP_SerialManager/AP_SerialManager.cpp
-    GOBJECT(serial_manager, "SERIAL",   AP_SerialManager),
+    // AP_SerialManager was here
 
     // @Param: TELEM_DELAY
     // @DisplayName: Telemetry startup delay
@@ -104,7 +101,7 @@ const AP_Param::Info Copter::var_info[] = {
     // @DisplayName: RTL Altitude
     // @Description: The minimum alt above home the vehicle will climb to before returning.  If the vehicle is flying higher than this value it will return at its current altitude.
     // @Units: cm
-    // @Range: 200 300000
+    // @Range: 30 300000
     // @Increment: 1
     // @User: Standard
     GSCALAR(rtl_altitude,   "RTL_ALT",     RTL_ALT),
@@ -597,7 +594,7 @@ const AP_Param::Info Copter::var_info[] = {
 
     // @Group: AVOID_
     // @Path: ../libraries/AC_Avoidance/AC_Avoid.cpp
-#if AC_AVOID_ENABLED == ENABLED
+#if AP_AVOIDANCE_ENABLED
     GOBJECT(avoid,      "AVOID_",   AC_Avoid),
 #endif
 
@@ -919,7 +916,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("TUNE_MAX", 32, ParametersG2, tuning_max, 0),
 
-#if AC_OAPATHPLANNER_ENABLED == ENABLED
+#if AP_OAPATHPLANNER_ENABLED
     // @Group: OA_
     // @Path: ../libraries/AC_Avoidance/AP_OAPathPlanner.cpp
     AP_SUBGROUPINFO(oa, "OA_", 33, ParametersG2, AP_OAPathPlanner),
@@ -1178,13 +1175,13 @@ const AP_Param::GroupInfo ParametersG2::var_info2[] = {
     // @User: Standard
     AP_GROUPINFO("PLDP_THRESH", 1, ParametersG2, pldp_thrust_placed_fraction, 0.9),
 
-    // @Param: PLDP_RNG_MIN
-    // @DisplayName: Payload Place minimum range finder altitude
-    // @Description: Minimum range finder altitude in m to trigger payload touchdown, set to zero to disable.
+    // @Param: PLDP_RNG_MAX
+    // @DisplayName: Payload Place maximum range finder altitude
+    // @Description: Maximum range finder altitude in m to trigger payload touchdown, set to zero to disable.
     // @Units: m
     // @Range: 0 100
     // @User: Standard
-    AP_GROUPINFO("PLDP_RNG_MIN", 2, ParametersG2, pldp_range_finder_minimum_m, 0.0),
+    AP_GROUPINFO("PLDP_RNG_MAX", 2, ParametersG2, pldp_range_finder_maximum_m, 0.0),
 
     // @Param: PLDP_DELAY
     // @DisplayName: Payload Place climb delay
@@ -1379,6 +1376,16 @@ void Copter::load_parameters(void)
     AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, true);
 #endif
 
+    static const AP_Param::TopLevelObjectConversion toplevel_conversions[] {
+#if AP_SERIALMANAGER_ENABLED
+        // PARAMETER_CONVERSION - Added: Feb-2024 for Copter-4.6
+        { &serial_manager, serial_manager.var_info, Parameters::k_param_serial_manager_old },
+#endif
+    };
+
+    AP_Param::convert_toplevel_objects(toplevel_conversions, ARRAY_SIZE(toplevel_conversions));
+
+
     // setup AP_Param frame type flags
     AP_Param::set_frame_type_flags(AP_PARAM_FRAME_COPTER);
 }
@@ -1485,6 +1492,7 @@ void Copter::convert_pid_parameters(void)
     };
     AP_Param::convert_old_parameters(&ff_and_filt_conversion_info[0], ARRAY_SIZE(ff_and_filt_conversion_info));
 
+#if AP_INERTIALSENSOR_HARMONICNOTCH_ENABLED
 #if HAL_INS_NUM_HARMONIC_NOTCH_FILTERS > 1
     if (!ins.harmonic_notches[1].params.enabled()) {
         // notch filter parameter conversions (moved to INS_HNTC2) for 4.2.x, converted from fixed notch
@@ -1500,6 +1508,7 @@ void Copter::convert_pid_parameters(void)
         AP_Param::set_default_by_name("INS_HNTC2_HMNCS", 1);
     }
 #endif
+#endif  // AP_INERTIALSENSOR_HARMONICNOTCH_ENABLED
 
     // ACRO_RP_P and ACRO_Y_P replaced with ACRO_RP_RATE and ACRO_Y_RATE for Copter-4.2
     // PARAMETER_CONVERSION - Added: Sep-2021

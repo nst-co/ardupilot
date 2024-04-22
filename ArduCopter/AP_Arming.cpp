@@ -231,12 +231,6 @@ bool AP_Arming_Copter::parameter_checks(bool display_failure)
             return false;
         }
 
-        // Inverted flight feature disabled for Heli Single and Dual frames
-        if (copter.g2.frame_class.get() != AP_Motors::MOTOR_FRAME_HELI_QUAD &&
-            rc().find_channel_for_option(RC_Channel::AUX_FUNC::INVERTED) != nullptr) {
-            check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Inverted flight option not supported");
-            return false;
-        }
         // Ensure an Aux Channel is configured for motor interlock
         if (rc().find_channel_for_option(RC_Channel::AUX_FUNC::MOTOR_INTERLOCK) == nullptr) {
             check_failed(ARMING_CHECK_PARAMETERS, display_failure, "Motor Interlock not configured");
@@ -305,7 +299,7 @@ bool AP_Arming_Copter::parameter_checks(bool display_failure)
 
 bool AP_Arming_Copter::oa_checks(bool display_failure)
 {
-#if AC_OAPATHPLANNER_ENABLED == ENABLED
+#if AP_OAPATHPLANNER_ENABLED
     char failure_msg[50] = {};
     if (copter.g2.oa.pre_arm_check(failure_msg, ARRAY_SIZE(failure_msg))) {
         return true;
@@ -413,7 +407,7 @@ bool AP_Arming_Copter::proximity_checks(bool display_failure) const
     }
 
     // get closest object if we might use it for avoidance
-#if AC_AVOID_ENABLED == ENABLED
+#if AP_AVOIDANCE_ENABLED
     float angle_deg, distance;
     if (copter.avoid.proximity_avoidance_enabled() && copter.g2.proximity.get_closest_object(angle_deg, distance)) {
         // display error if something is within 60cm
@@ -499,18 +493,6 @@ bool AP_Arming_Copter::mandatory_gps_checks(bool display_failure)
             check_failed(display_failure, "EKF height variance");
             return false;
         }
-    }
-
-    // check if home is too far from EKF origin
-    if (copter.far_from_EKF_origin(ahrs.get_home())) {
-        check_failed(display_failure, "Home too far from EKF origin");
-        return false;
-    }
-
-    // check if vehicle is too far from EKF origin
-    if (copter.far_from_EKF_origin(copter.current_loc)) {
-        check_failed(display_failure, "Vehicle too far from EKF origin");
-        return false;
     }
 
     // if we got here all must be ok

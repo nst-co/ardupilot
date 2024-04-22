@@ -357,7 +357,9 @@ static const ap_message STREAM_EXTRA3_msgs[] = {
     MSG_AHRS,
     MSG_SYSTEM_TIME,
     MSG_WIND,
+#if AP_RANGEFINDER_ENABLED
     MSG_RANGEFINDER,
+#endif
     MSG_DISTANCE_SENSOR,
 #if AP_BATTERY_ENABLED
     MSG_BATTERY_STATUS,
@@ -444,15 +446,6 @@ MAV_RESULT GCS_MAVLINK_Blimp::handle_command_do_set_roi(const Location &roi_loc)
     }
     // blimp.flightmode->auto_yaw.set_roi(roi_loc);
     return MAV_RESULT_ACCEPTED;
-}
-
-bool GCS_MAVLINK_Blimp::set_home_to_current_location(bool _lock)
-{
-    return blimp.set_home_to_current_location(_lock);
-}
-bool GCS_MAVLINK_Blimp::set_home(const Location& loc, bool _lock)
-{
-    return blimp.set_home(loc, _lock);
 }
 
 MAV_RESULT GCS_MAVLINK_Blimp::handle_command_int_do_reposition(const mavlink_command_int_t &packet)

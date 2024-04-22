@@ -36,7 +36,6 @@ const AP_Param::Info Sub::var_info[] = {
     // @DisplayName: Eeprom format version number
     // @Description: This value is incremented when changes are made to the eeprom format
     // @User: Advanced
-    // @ReadOnly: True
     GSCALAR(format_version, "FORMAT_VERSION",   0),
 
     // @Param: SYSID_THISMAV
@@ -63,9 +62,7 @@ const AP_Param::Info Sub::var_info[] = {
     // @Increment: .5
     GSCALAR(throttle_filt,  "PILOT_THR_FILT",     0),
 
-    // @Group: SERIAL
-    // @Path: ../libraries/AP_SerialManager/AP_SerialManager.cpp
-    GOBJECT(serial_manager, "SERIAL",   AP_SerialManager),
+    // AP_SerialManager was here
 
     // @Param: GCS_PID_MASK
     // @DisplayName: GCS PID tuning mask
@@ -775,6 +772,15 @@ void Sub::load_parameters()
 #if HAL_LOGGING_ENABLED
     AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, true);
 #endif
+
+    static const AP_Param::TopLevelObjectConversion toplevel_conversions[] {
+#if AP_SERIALMANAGER_ENABLED
+        // PARAMETER_CONVERSION - Added: Feb-2024
+        { &serial_manager, serial_manager.var_info, Parameters::k_param_serial_manager_old },
+#endif
+    };
+
+    AP_Param::convert_toplevel_objects(toplevel_conversions, ARRAY_SIZE(toplevel_conversions));
 }
 
 void Sub::convert_old_parameters()

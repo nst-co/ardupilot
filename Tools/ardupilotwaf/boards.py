@@ -195,7 +195,7 @@ class Board:
                 (int(major) == want_major and int(minor) >= want_minor))
 
     def configure_env(self, cfg, env):
-        # Use a dictionary instead of the convetional list for definitions to
+        # Use a dictionary instead of the conventional list for definitions to
         # make easy to override them. Convert back to list before consumption.
         env.DEFINES = {}
 
@@ -578,6 +578,9 @@ def get_boards_names():
 
     return sorted(list(_board_classes.keys()), key=str.lower)
 
+def is_board_based(board, cls):
+    return issubclass(_board_classes[board], cls)
+
 def get_ap_periph_boards():
     '''Add AP_Periph boards based on existance of periph keywork in hwdef.dat or board name'''
     list_ap = [s for s in list(_board_classes.keys()) if "periph" in s]
@@ -888,6 +891,7 @@ class sitl_periph(sitl):
             HAL_RALLY_ENABLED = 0,
             HAL_SUPPORT_RCOUT_SERIAL = 0,
             AP_TERRAIN_AVAILABLE = 0,
+            AP_CUSTOMROTATIONS_ENABLED = 0,
         )
 
         try:

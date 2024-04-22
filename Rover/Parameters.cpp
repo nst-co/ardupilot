@@ -274,9 +274,7 @@ const AP_Param::Info Rover::var_info[] = {
     GOBJECTN(_gcs.chan_parameters[6],  gcs6,       "SR6_",     GCS_MAVLINK_Parameters),
 #endif
 
-    // @Group: SERIAL
-    // @Path: ../libraries/AP_SerialManager/AP_SerialManager.cpp
-    GOBJECT(serial_manager,         "SERIAL",   AP_SerialManager),
+    // AP_SerialManager was here
 
     // @Group: RNGFND
     // @Path: ../libraries/AP_RangeFinder/AP_RangeFinder.cpp
@@ -489,9 +487,11 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_SUBGROUPINFO(proximity, "PRX", 18, ParametersG2, AP_Proximity),
 #endif
 
+#if AP_AVOIDANCE_ENABLED
     // @Group: AVOID_
     // @Path: ../libraries/AC_Avoidance/AC_Avoid.cpp
     AP_SUBGROUPINFO(avoid, "AVOID_", 19, ParametersG2, AC_Avoid),
+#endif
 
     // 20 was PIVOT_TURN_RATE and should not be re-used
 
@@ -610,9 +610,11 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Path: sailboat.cpp
     AP_SUBGROUPINFO(sailboat, "SAIL_", 44, ParametersG2, Sailboat),
 
+#if AP_OAPATHPLANNER_ENABLED
     // @Group: OA_
     // @Path: ../libraries/AC_Avoidance/AP_OAPathPlanner.cpp
     AP_SUBGROUPINFO(oa, "OA_", 45, ParametersG2, AP_OAPathPlanner),
+#endif
 
     // @Param: SPEED_MAX
     // @DisplayName: Speed maximum
@@ -741,7 +743,9 @@ ParametersG2::ParametersG2(void)
 #if HAL_PROXIMITY_ENABLED
     proximity(),
 #endif
+#if AP_AVOIDANCE_ENABLED
     avoid(),
+#endif
 #if AP_FOLLOW_ENABLED
     follow(),
 #endif
@@ -908,5 +912,14 @@ void Rover::load_parameters(void)
 #if HAL_LOGGING_ENABLED
     AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, true);
 #endif
+
+    static const AP_Param::TopLevelObjectConversion toplevel_conversions[] {
+#if AP_SERIALMANAGER_ENABLED
+        // PARAMETER_CONVERSION - Added: Feb-2024 for Rover-4.6
+        { &serial_manager, serial_manager.var_info, Parameters::k_param_serial_manager_old },
+#endif
+    };
+
+    AP_Param::convert_toplevel_objects(toplevel_conversions, ARRAY_SIZE(toplevel_conversions));
 
 }

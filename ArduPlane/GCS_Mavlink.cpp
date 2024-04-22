@@ -675,7 +675,9 @@ static const ap_message STREAM_EXTRA2_msgs[] = {
 static const ap_message STREAM_EXTRA3_msgs[] = {
     MSG_AHRS,
     MSG_WIND,
+#if AP_RANGEFINDER_ENABLED
     MSG_RANGEFINDER,
+#endif
     MSG_DISTANCE_SENSOR,
     MSG_SYSTEM_TIME,
 #if AP_TERRAIN_AVAILABLE
@@ -746,6 +748,16 @@ void GCS_MAVLINK_Plane::handle_change_alt_request(AP_Mission::Mission_Command &c
 }
 
 
+/*
+  handle a LANDING_TARGET command. The timestamp has been jitter corrected
+*/
+void GCS_MAVLINK_Plane::handle_landing_target(const mavlink_landing_target_t &packet, uint32_t timestamp_ms)
+{
+#if AC_PRECLAND_ENABLED
+    plane.g2.precland.handle_msg(packet, timestamp_ms);
+#endif
+}
+
 MAV_RESULT GCS_MAVLINK_Plane::handle_command_preflight_calibration(const mavlink_command_int_t &packet, const mavlink_message_t &msg)
 {
     plane.in_calibration = true;
@@ -769,25 +781,25 @@ void GCS_MAVLINK_Plane::packetReceived(const mavlink_status_t &status,
 }
 
 
-bool GCS_MAVLINK_Plane::set_home_to_current_location(bool _lock)
+bool Plane::set_home_to_current_location(bool _lock)
 {
-    if (!plane.set_home_persistently(AP::gps().location())) {
+    if (!set_home_persistently(AP::gps().location())) {
         return false;
     }
     if (_lock) {
         AP::ahrs().lock_home();
     }
-    if ((plane.control_mode == &plane.mode_rtl)
+    if ((control_mode == &mode_rtl)
 #if HAL_QUADPLANE_ENABLED
-            || (plane.control_mode == &plane.mode_qrtl)
+            || (control_mode == &mode_qrtl)
 #endif
                                                         ) {
         // if in RTL head to the updated home location
-        plane.control_mode->enter();
+        control_mode->enter();
     }
     return true;
 }
-bool GCS_MAVLINK_Plane::set_home(const Location& loc, bool _lock)
+bool Plane::set_home(const Location& loc, bool _lock)
 {
     if (!AP::ahrs().set_home(loc)) {
         return false;
@@ -795,13 +807,13 @@ bool GCS_MAVLINK_Plane::set_home(const Location& loc, bool _lock)
     if (_lock) {
         AP::ahrs().lock_home();
     }
-    if ((plane.control_mode == &plane.mode_rtl)
+    if ((control_mode == &mode_rtl)
 #if HAL_QUADPLANE_ENABLED
-            || (plane.control_mode == &plane.mode_qrtl)
+            || (control_mode == &mode_qrtl)
 #endif
                                                         ) {
         // if in RTL head to the updated home location
-        plane.control_mode->enter();
+        control_mode->enter();
     }
     return true;
 }
@@ -1053,7 +1065,7 @@ MAV_RESULT GCS_MAVLINK_Plane::handle_command_int_packet(const mavlink_command_in
 
     case MAV_CMD_DO_LAND_START:
         // attempt to switch to next DO_LAND_START command in the mission
-        if (plane.mission.jump_to_landing_sequence()) {
+        if (plane.have_position && plane.mission.jump_to_landing_sequence(plane.current_loc)) {
             plane.set_mode(plane.mode_auto, ModeReason::GCS_COMMAND);
             return MAV_RESULT_ACCEPTED;
         }
@@ -1375,9 +1387,11 @@ void GCS_MAVLINK_Plane::handle_set_position_target_global_int(const mavlink_mess
                 case MAV_FRAME_GLOBAL:
                 case MAV_FRAME_GLOBAL_INT:
                     break; //default to MSL altitude
+                case MAV_FRAME_GLOBAL_RELATIVE_ALT:
                 case MAV_FRAME_GLOBAL_RELATIVE_ALT_INT:
                     cmd.content.location.relative_alt = true;
                     break;
+                case MAV_FRAME_GLOBAL_TERRAIN_ALT:
                 case MAV_FRAME_GLOBAL_TERRAIN_ALT_INT:
                     cmd.content.location.relative_alt = true;
                     cmd.content.location.terrain_alt = true;

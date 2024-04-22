@@ -27,7 +27,6 @@ const AP_Param::Info Blimp::var_info[] = {
     // @DisplayName: Eeprom format version number
     // @Description: This value is incremented when changes are made to the eeprom format
     // @User: Advanced
-    // @ReadOnly: True
     GSCALAR(format_version, "FORMAT_VERSION",   0),
 
     // @Param: SYSID_THISMAV
@@ -62,9 +61,7 @@ const AP_Param::Info Blimp::var_info[] = {
     // @Bitmask: 0:Feedback from mid stick,1:High throttle cancels landing,2:Disarm on land detection
     GSCALAR(throttle_behavior, "PILOT_THR_BHV", 0),
 
-    // @Group: SERIAL
-    // @Path: ../libraries/AP_SerialManager/AP_SerialManager.cpp
-    GOBJECT(serial_manager, "SERIAL",   AP_SerialManager),
+    // SerialManager was here
 
     // @Param: TELEM_DELAY
     // @DisplayName: Telemetry startup delay
@@ -858,6 +855,15 @@ void Blimp::load_parameters(void)
 #if HAL_LOGGING_ENABLED
     AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, true);
 #endif
+
+    static const AP_Param::TopLevelObjectConversion toplevel_conversions[] {
+#if AP_SERIALMANAGER_ENABLED
+        // PARAMETER_CONVERSION - Added: Feb-2024
+        { &serial_manager, serial_manager.var_info, Parameters::k_param_serial_manager_old },
+#endif
+    };
+
+    AP_Param::convert_toplevel_objects(toplevel_conversions, ARRAY_SIZE(toplevel_conversions));
 
     // setup AP_Param frame type flags
     AP_Param::set_frame_type_flags(AP_PARAM_FRAME_BLIMP);

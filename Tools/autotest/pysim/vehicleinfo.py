@@ -45,6 +45,12 @@ class VehicleInfo(object):
                 "default_params_filename": ["default_params/copter.parm",
                                             "default_params/copter-hexa.parm" ],
             },
+            "hexax": {
+                "waf_target": "bin/arducopter",
+                "default_params_filename": ["default_params/copter.parm",
+                                            "default_params/copter-hexa.parm",
+                                            "default_params/copter-X.parm", ],
+            },
             "hexa-cwx": {
                 "waf_target": "bin/arducopter",
                 "default_params_filename": [
@@ -182,13 +188,25 @@ class VehicleInfo(object):
             "Callisto": {
                 "model": "octa-quad:@ROMFS/models/Callisto.json",
                 "waf_target": "bin/arducopter",
-                "default_params_filename": ["default_params/copter.parm",
-                                            "models/Callisto.param"],
+                "default_params_filename": [
+                    "default_params/copter.parm",
+                    "default_params/copter-octaquad.parm",
+                    "models/Callisto.param",
+                ],
             },
             "quad-can": {
                 "waf_target": "bin/arducopter",
                 "default_params_filename": ["default_params/copter.parm", "default_params/quad-can.parm"],
                 "periph_params_filename": ["default_params/periph.parm", "default_params/quad-periph.parm"],
+            },
+            "freestyle": {
+                "model": "X:@ROMFS/models/freestyle.json",
+                "waf_target": "bin/arducopter",
+                "default_params_filename": [
+                    "default_params/copter.parm",
+                    "default_params/copter-X.parm",
+                    "models/freestyle.param",
+                ],
             },
         },
     },

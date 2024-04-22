@@ -21,6 +21,8 @@
 
 #include "AP_Scheduler_config.h"
 
+#if AP_SCHEDULER_ENABLED
+
 #include "AP_Scheduler.h"
 
 #include <AP_HAL/AP_HAL.h>
@@ -360,7 +362,7 @@ void AP_Scheduler::loop()
           for testing low CPU conditions we can add an optional delay in SITL
         */
         auto *sitl = AP::sitl();
-        uint32_t loop_delay_us = sitl->loop_delay.get();
+        uint32_t loop_delay_us = sitl? sitl->loop_delay.get() : 1000U;
         hal.scheduler->delay_microseconds(loop_delay_us);
     }
 #endif
@@ -539,3 +541,5 @@ AP_Scheduler &scheduler()
 }
 
 };
+
+#endif  // AP_SCHEDULER_ENABLED

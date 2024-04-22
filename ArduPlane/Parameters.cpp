@@ -29,9 +29,7 @@ const AP_Param::Info Plane::var_info[] = {
     // @User: Advanced
     GSCALAR(sysid_my_gcs,           "SYSID_MYGCS",    255),
 
-    // @Group: SERIAL
-    // @Path: ../libraries/AP_SerialManager/AP_SerialManager.cpp
-    GOBJECT(serial_manager, "SERIAL",   AP_SerialManager),
+    // AP_SerialManager was here
 
     // @Param: AUTOTUNE_LEVEL
     // @DisplayName: Autotune level
@@ -535,7 +533,7 @@ const AP_Param::Info Plane::var_info[] = {
     // @Param: PTCH_LIM_MIN_DEG
     // @DisplayName: Minimum Pitch Angle
     // @Description: Maximum pitch down angle commanded in modes with stabilized limits
-    // @Units: cdeg
+    // @Units: deg
     // @Range: -90 0
     // @Increment: 10
     // @User: Standard
@@ -1244,7 +1242,13 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Bitmask: 0:Roll,1:Pitch,2:Yaw
     // @User: Standard
     AP_GROUPINFO("AUTOTUNE_AXES", 34, ParametersG2, axis_bitmask, 7),
-    
+
+#if AC_PRECLAND_ENABLED
+    // @Group: PLND_
+    // @Path: ../libraries/AC_PrecLand/AC_PrecLand.cpp
+    AP_SUBGROUPINFO(precland, "PLND_", 35, ParametersG2, AC_PrecLand),
+#endif
+
     AP_GROUPEND
 };
 
@@ -1477,6 +1481,7 @@ void Plane::load_parameters(void)
     }
 #endif
 
+#if AP_INERTIALSENSOR_HARMONICNOTCH_ENABLED
 #if HAL_INS_NUM_HARMONIC_NOTCH_FILTERS > 1
     if (!ins.harmonic_notches[1].params.enabled()) {
         // notch filter parameter conversions (moved to INS_HNTC2) for 4.2.x, converted from fixed notch
@@ -1491,7 +1496,8 @@ void Plane::load_parameters(void)
         AP_Param::set_default_by_name("INS_HNTC2_HMNCS", 1);
     }
 #endif // HAL_INS_NUM_HARMONIC_NOTCH_FILTERS
-    
+#endif  // AP_INERTIALSENSOR_HARMONICNOTCH_ENABLED
+
     // PARAMETER_CONVERSION - Added: Mar-2022
 #if AP_FENCE_ENABLED
     AP_Param::convert_class(g.k_param_fence, &fence, fence.var_info, 0, true);
@@ -1535,4 +1541,13 @@ void Plane::load_parameters(void)
 #if HAL_LOGGING_ENABLED
     AP_Param::convert_class(g.k_param_logger, &logger, logger.var_info, 0, true);
 #endif
+
+    static const AP_Param::TopLevelObjectConversion toplevel_conversions[] {
+#if AP_SERIALMANAGER_ENABLED
+        // PARAMETER_CONVERSION - Added: Feb-2024 for Plane-4.6
+        { &serial_manager, serial_manager.var_info, Parameters::k_param_serial_manager_old },
+#endif
+    };
+
+    AP_Param::convert_toplevel_objects(toplevel_conversions, ARRAY_SIZE(toplevel_conversions));
 }

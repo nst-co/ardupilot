@@ -11,7 +11,6 @@ import signal
 import time
 
 from pymavlink import quaternion
-from pymavlink import mavextra
 from pymavlink import mavutil
 
 from pymavlink.rotmat import Vector3
@@ -175,10 +174,11 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
     def fly_RTL(self):
         """Fly to home."""
         self.progress("Flying home in RTL")
+        target_loc = self.homeloc
+        target_loc.alt += 100
         self.change_mode('RTL')
-        self.wait_location(self.homeloc,
+        self.wait_location(target_loc,
                            accuracy=120,
-                           target_altitude=self.homeloc.alt+100,
                            height_accuracy=20,
                            timeout=180)
         self.progress("RTL Complete")
@@ -1877,8 +1877,8 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         self.wait_ready_to_arm()
         self.homeloc = self.mav.location()
 
-        guided_loc = mavutil.location(-35.39723762, 149.07284612, 99.0, 0)
-        rally_loc = mavutil.location(-35.3654952000, 149.1558698000, 100, 0)
+        guided_loc = mavutil.location(-35.39723762, 149.07284612, self.homeloc.alt+99.0, 0)
+        rally_loc = mavutil.location(-35.3654952000, 149.1558698000, self.homeloc.alt+100, 0)
 
         terrain_wait_path(self.homeloc, rally_loc, 10)
 
@@ -1898,19 +1898,23 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         self.change_mode("GUIDED")
         self.do_reposition(guided_loc, frame=mavutil.mavlink.MAV_FRAME_GLOBAL_TERRAIN_ALT)
         self.progress("Flying to guided location")
-        self.wait_location(guided_loc,
-                           accuracy=200,
-                           target_altitude=None,
-                           timeout=600)
+        self.wait_location(
+            guided_loc,
+            accuracy=200,
+            timeout=600,
+            height_accuracy=10,
+        )
 
         self.progress("Reached guided location")
         self.set_parameter("RALLY_LIMIT_KM", 50)
         self.change_mode("RTL")
         self.progress("Flying to rally point")
-        self.wait_location(rally_loc,
-                           accuracy=200,
-                           target_altitude=None,
-                           timeout=600)
+        self.wait_location(
+            rally_loc,
+            accuracy=200,
+            timeout=600,
+            height_accuracy=10,
+        )
         self.progress("Reached rally point with TERRAIN_FOLLOW")
 
         # Fly back to guided location
@@ -1933,17 +1937,21 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         self.check_rally_upload_download(rally_item)
 
         # Once back at guided location re-trigger RTL
-        self.wait_location(guided_loc,
-                           accuracy=200,
-                           target_altitude=None,
-                           timeout=600)
+        self.wait_location(
+            guided_loc,
+            accuracy=200,
+            timeout=600,
+            height_accuracy=10,
+        )
 
         self.change_mode("RTL")
         self.progress("Flying to rally point")
-        self.wait_location(rally_loc,
-                           accuracy=200,
-                           target_altitude=None,
-                           timeout=600)
+        self.wait_location(
+            rally_loc,
+            accuracy=200,
+            timeout=600,
+            height_accuracy=10,
+        )
         self.progress("Reached rally point with terrain alt frame")
 
         self.context_pop()
@@ -1996,70 +2004,6 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         self.start_subtest(desc)
         func()
 
-    def check_attitudes_match(self, a, b):
-        '''make sure ahrs2 and simstate and ATTTIUDE_QUATERNION all match'''
-
-        # these are ordered to bookend the list with timestamps (which
-        # both attitude messages have):
-        get_names = ['ATTITUDE', 'SIMSTATE', 'AHRS2', 'ATTITUDE_QUATERNION']
-        msgs = self.get_messages_frame(get_names)
-
-        for get_name in get_names:
-            self.progress("%s: %s" % (get_name, msgs[get_name]))
-
-        simstate = msgs['SIMSTATE']
-        attitude = msgs['ATTITUDE']
-        ahrs2 = msgs['AHRS2']
-        attitude_quaternion = msgs['ATTITUDE_QUATERNION']
-
-        # check ATTITUDE
-        want = math.degrees(simstate.roll)
-        got = math.degrees(attitude.roll)
-        if abs(mavextra.angle_diff(want, got)) > 20:
-            raise NotAchievedException("ATTITUDE.Roll looks bad (want=%f got=%f)" %
-                                       (want, got))
-        want = math.degrees(simstate.pitch)
-        got = math.degrees(attitude.pitch)
-        if abs(mavextra.angle_diff(want, got)) > 20:
-            raise NotAchievedException("ATTITUDE.Pitch looks bad (want=%f got=%f)" %
-                                       (want, got))
-
-        # check AHRS2
-        want = math.degrees(simstate.roll)
-        got = math.degrees(ahrs2.roll)
-        if abs(mavextra.angle_diff(want, got)) > 20:
-            raise NotAchievedException("AHRS2.Roll looks bad (want=%f got=%f)" %
-                                       (want, got))
-
-        want = math.degrees(simstate.pitch)
-        got = math.degrees(ahrs2.pitch)
-        if abs(mavextra.angle_diff(want, got)) > 20:
-            raise NotAchievedException("AHRS2.Pitch looks bad (want=%f got=%f)" %
-                                       (want, got))
-
-        # check ATTITUDE_QUATERNION
-        q = quaternion.Quaternion([
-            attitude_quaternion.q1,
-            attitude_quaternion.q2,
-            attitude_quaternion.q3,
-            attitude_quaternion.q4
-        ])
-        euler = q.euler
-        self.progress("attquat:%s q:%s euler:%s" % (
-            str(attitude_quaternion), q, euler))
-
-        want = math.degrees(simstate.roll)
-        got = math.degrees(euler[0])
-        if mavextra.angle_diff(want, got) > 20:
-            raise NotAchievedException("quat roll differs from attitude roll; want=%f got=%f" %
-                                       (want, got))
-
-        want = math.degrees(simstate.pitch)
-        got = math.degrees(euler[1])
-        if mavextra.angle_diff(want, got) > 20:
-            raise NotAchievedException("quat pitch differs from attitude pitch; want=%f got=%f" %
-                                       (want, got))
-
     def fly_ahrs2_test(self):
         '''check secondary estimator is looking OK'''
 
@@ -2080,7 +2024,7 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         if self.get_distance_int(gpi, ahrs2) > 10:
             raise NotAchievedException("Secondary location looks bad")
 
-        self.check_attitudes_match(1, 2)
+        self.check_attitudes_match()
 
     def MainFlight(self):
         '''Lots of things in one flight'''
@@ -3167,7 +3111,7 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
             "EAHRS_TYPE": eahrs_type,
             "SERIAL4_PROTOCOL": 36,
             "SERIAL4_BAUD": 230400,
-            "GPS_TYPE": 21,
+            "GPS1_TYPE": 21,
             "AHRS_EKF_TYPE": 11,
             "INS_GYR_CAL": 1,
         })
@@ -3477,7 +3421,7 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
             "AHRS_EKF_TYPE": 3,
             "EK3_AFFINITY": 15, # enable affinity for all sensors
             "EK3_IMU_MASK": 3, # use only 2 IMUs
-            "GPS_TYPE2": 1,
+            "GPS2_TYPE": 1,
             "SIM_GPS2_DISABLE": 0,
             "SIM_BARO_COUNT": 2,
             "SIM_BAR2_DISABLE": 0,
@@ -3973,7 +3917,8 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
             if not isinstance(defaults, list):
                 defaults = [defaults]
             self.customise_SITL_commandline(
-                ["--defaults", ','.join(defaults), ],
+                [],
+                defaults_filepath=defaults,
                 model=model,
                 wipe=True,
             )
@@ -5312,6 +5257,38 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         home = self.home_position_as_mav_location()
         self.assert_distance(home, adsb_vehicle_loc, 0, 10000)
 
+    def MinThrottle(self):
+        '''Make sure min throttle does not apply in manual mode and does in FBWA'''
+
+        servo_min = self.get_parameter("RC3_MIN")
+        servo_max = self.get_parameter("RC3_MAX")
+        min_throttle = 10
+        servo_min_throttle = servo_min + (servo_max - servo_min) * (min_throttle / 100)
+
+        # Set min throttle
+        self.set_parameter('THR_MIN', min_throttle)
+
+        # Should be 0 throttle while disarmed
+        self.change_mode("MANUAL")
+        self.drain_mav() # make sure we have the latest data before checking throttle output
+        self.assert_servo_channel_value(3, servo_min)
+
+        # Arm and check throttle is still 0 in manual
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.drain_mav()
+        self.assert_servo_channel_value(3, servo_min)
+
+        # FBWA should apply throttle min
+        self.change_mode("FBWA")
+        self.drain_mav()
+        self.assert_servo_channel_value(3, servo_min_throttle)
+
+        # But not when disarmed
+        self.disarm_vehicle()
+        self.drain_mav()
+        self.assert_servo_channel_value(3, servo_min)
+
     def tests(self):
         '''return list of all tests'''
         ret = super(AutoTestPlane, self).tests()
@@ -5419,6 +5396,7 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
             self.TerrainRally,
             self.MAV_CMD_NAV_LOITER_UNLIM,
             self.MAV_CMD_NAV_RETURN_TO_LAUNCH,
+            self.MinThrottle,
         ])
         return ret
 

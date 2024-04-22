@@ -128,6 +128,10 @@ public:
     virtual bool allows_autotune() const { return false; }
     virtual bool allows_flip() const { return false; }
 
+#if FRAME_CONFIG == HELI_FRAME
+    virtual bool allows_inverted() const { return false; };
+#endif
+
     // return a string for this flightmode
     virtual const char *name() const = 0;
     virtual const char *name4() const = 0;
@@ -192,6 +196,9 @@ protected:
     void zero_throttle_and_relax_ac(bool spool_up = false);
     void zero_throttle_and_hold_attitude();
     void make_safe_ground_handling(bool force_throttle_unlimited = false);
+
+    // Return stopping point as a location with above origin alt frame
+    Location get_stopping_point() const;
 
     // functions to control normal landing.  pause_descent is true if vehicle should not descend
     void land_run_horizontal_control();
@@ -334,7 +341,9 @@ public:
         // rate_cds(): desired yaw rate in centidegrees/second:
         float rate_cds();
 
+        // returns a yaw in degrees, direction of vehicle travel:
         float look_ahead_yaw();
+
         float roi_yaw() const;
 
         // auto flight mode's yaw mode
@@ -1574,6 +1583,8 @@ public:
     bool init(bool ignore_checks) override;
     void run() override;
 
+    bool allows_inverted() const override { return true; };
+
 protected:
 
 private:
@@ -1768,7 +1779,7 @@ private:
 
 };
 
-#if AP_FOLLOW_ENABLED
+#if MODE_FOLLOW_ENABLED == ENABLED
 class ModeFollow : public ModeGuided {
 
 public:

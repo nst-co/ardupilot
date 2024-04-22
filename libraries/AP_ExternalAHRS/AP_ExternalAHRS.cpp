@@ -235,12 +235,14 @@ bool AP_ExternalAHRS::pre_arm_check(char *failure_msg, uint8_t failure_msg_len) 
         hal.util->snprintf(failure_msg, failure_msg_len, "ExternalAHRS: Invalid backend");
         return false;
     }
-
-    if (!state.have_origin) {
-        hal.util->snprintf(failure_msg, failure_msg_len, "ExternalAHRS: No origin");
+    if (!backend->pre_arm_check(failure_msg, failure_msg_len)) {
         return false;
     }
-    return backend->pre_arm_check(failure_msg, failure_msg_len);
+    if (!state.have_origin) {
+        hal.util->snprintf(failure_msg, failure_msg_len, "ExternalAHRS: No origin");
+	    return false;
+    }
+    return true;
 }
 
 /*
@@ -301,6 +303,7 @@ void AP_ExternalAHRS::update(void)
             state.have_origin = true;
         }
     }
+#if HAL_LOGGING_ENABLED
     const uint32_t now_ms = AP_HAL::millis();
     if (log_rate.get() > 0 && now_ms - last_log_ms >= uint32_t(1000U/log_rate.get())) {
         last_log_ms = now_ms;
@@ -334,6 +337,7 @@ void AP_ExternalAHRS::update(void)
                                     state.location.lat, state.location.lng, state.location.alt*0.01,
                                     filterStatus.value);
     }
+#endif  // HAL_LOGGING_ENABLED
 }
 
 // Get model/type name
