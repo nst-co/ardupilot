@@ -37,6 +37,7 @@
 #include <AP_BoardConfig/AP_BoardConfig.h>
 #include <AP_JSON/AP_JSON.h>
 #include <AP_Filesystem/AP_Filesystem.h>
+#include <AP_AHRS/AP_AHRS.h>
 
 using namespace SITL;
 
@@ -176,16 +177,18 @@ void Aircraft::update_position(void)
                                            pos_home.x, pos_home.y, pos_home.z);
 #endif
 
-    uint32_t now = AP_HAL::millis();
-    if (now - last_one_hz_ms >= 1000) {
-        // shift origin of position at 1Hz to current location
-        // this prevents sperical errors building up in the GPS data
-        last_one_hz_ms = now;
-        Vector2d diffNE = origin.get_distance_NE_double(location);
-        position.xy() -= diffNE;
-        smoothing.position.xy() -= diffNE;
-        origin.lat = location.lat;
-        origin.lng = location.lng;
+    if (!disable_origin_movement) {
+        uint32_t now = AP_HAL::millis();
+        if (now - last_one_hz_ms >= 1000) {
+            // shift origin of position at 1Hz to current location
+            // this prevents sperical errors building up in the GPS data
+            last_one_hz_ms = now;
+            Vector2d diffNE = origin.get_distance_NE_double(location);
+            position.xy() -= diffNE;
+            smoothing.position.xy() -= diffNE;
+            origin.lat = location.lat;
+            origin.lng = location.lng;
+        }
     }
 }
 
@@ -619,6 +622,12 @@ void Aircraft::update_model(const struct sitl_input &input)
  */
 void Aircraft::update_dynamics(const Vector3f &rot_accel)
 {
+    // update eas2tas and air density
+#if AP_AHRS_ENABLED
+    eas2tas = AP::ahrs().get_EAS2TAS();
+#endif
+    air_density = SSL_AIR_DENSITY / sq(eas2tas);
+
     const float delta_time = frame_time_us * 1.0e-6f;
 
     // update rotational rates in body frame
@@ -627,6 +636,12 @@ void Aircraft::update_dynamics(const Vector3f &rot_accel)
     gyro.x = constrain_float(gyro.x, -radians(2000.0f), radians(2000.0f));
     gyro.y = constrain_float(gyro.y, -radians(2000.0f), radians(2000.0f));
     gyro.z = constrain_float(gyro.z, -radians(2000.0f), radians(2000.0f));
+
+    // limit body accel to 64G
+    const float accel_limit = 64*GRAVITY_MSS;
+    accel_body.x = constrain_float(accel_body.x, -accel_limit, accel_limit);
+    accel_body.y = constrain_float(accel_body.y, -accel_limit, accel_limit);
+    accel_body.z = constrain_float(accel_body.z, -accel_limit, accel_limit);
 
     // update attitude
     dcm.rotate(gyro * delta_time);
@@ -675,7 +690,7 @@ void Aircraft::update_dynamics(const Vector3f &rot_accel)
         // get speed of ground movement (for ship takeoff/landing)
         float yaw_rate = 0;
 #if AP_SIM_SHIP_ENABLED
-        const Vector2f ship_movement = sitl->shipsim.get_ground_speed_adjustment(location, yaw_rate);
+        const Vector2f ship_movement = sitl->models.shipsim.get_ground_speed_adjustment(location, yaw_rate);
         const Vector3f gnd_movement(ship_movement.x, ship_movement.y, 0);
 #else
         const Vector3f gnd_movement;
@@ -900,30 +915,9 @@ void Aircraft::smooth_sensors(void)
   return a filtered servo input as a value from -1 to 1
   servo is assumed to be 1000 to 2000, trim at 1500
  */
-float Aircraft::filtered_idx(float v, uint8_t idx)
-{
-    if (sitl->servo_speed <= 0) {
-        return v;
-    }
-    const float cutoff = 1.0f / (2 * M_PI * sitl->servo_speed);
-    servo_filter[idx].set_cutoff_frequency(cutoff);
-
-    if (idx >= ARRAY_SIZE(servo_filter)) {
-        AP_HAL::panic("Attempt to filter invalid servo at offset %u", (unsigned)idx);
-    }
-
-    return servo_filter[idx].apply(v, frame_time_us * 1.0e-6f);
-}
-
-
-/*
-  return a filtered servo input as a value from -1 to 1
-  servo is assumed to be 1000 to 2000, trim at 1500
- */
 float Aircraft::filtered_servo_angle(const struct sitl_input &input, uint8_t idx)
 {
-    const float v = (input.servos[idx] - 1500)/500.0f;
-    return filtered_idx(v, idx);
+    return servo_filter[idx].filter_angle(input.servos[idx], frame_time_us * 1.0e-6);
 }
 
 /*
@@ -932,8 +926,14 @@ float Aircraft::filtered_servo_angle(const struct sitl_input &input, uint8_t idx
  */
 float Aircraft::filtered_servo_range(const struct sitl_input &input, uint8_t idx)
 {
-    const float v = (input.servos[idx] - 1000)/1000.0f;
-    return filtered_idx(v, idx);
+    return servo_filter[idx].filter_range(input.servos[idx], frame_time_us * 1.0e-6);
+}
+
+// setup filtering for servo
+void Aircraft::filtered_servo_setup(uint8_t idx, uint16_t pwm_min, uint16_t pwm_max, float deflection_deg)
+{
+    servo_filter[idx].set_pwm_range(pwm_min, pwm_max);
+    servo_filter[idx].set_deflection(deflection_deg);
 }
 
 // extrapolate sensors by a given delta time in seconds
@@ -1024,7 +1024,7 @@ void Aircraft::update_external_payload(const struct sitl_input &input)
     }
 
 #if AP_SIM_SHIP_ENABLED
-    sitl->shipsim.update();
+    sitl->models.shipsim.update();
 #endif
 
     // update IntelligentEnergy 2.4kW generator
@@ -1166,4 +1166,15 @@ Vector3d Aircraft::get_position_relhome() const
     Vector3d pos = position;
     pos.xy() += home.get_distance_NE_double(origin);
     return pos;
+}
+
+// get air density in kg/m^3
+float Aircraft::get_air_density(float alt_amsl) const
+{
+    float sigma, delta, theta;
+
+    AP_Baro::SimpleAtmosphere(alt_amsl * 0.001f, sigma, delta, theta);
+
+    const float air_pressure = SSL_AIR_PRESSURE * delta;
+    return air_pressure / (ISA_GAS_CONSTANT * SSL_AIR_TEMPERATURE);
 }

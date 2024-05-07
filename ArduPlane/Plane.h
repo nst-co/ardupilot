@@ -143,6 +143,7 @@ public:
     friend class Tiltrotor;
     friend class SLT_Transition;
     friend class Tailsitter_Transition;
+    friend class VTOL_Assist;
 
     friend class Mode;
     friend class ModeCircle;
@@ -399,9 +400,6 @@ private:
     int32_t groundspeed_undershoot;
     bool groundspeed_undershoot_is_valid;
 
-    // Difference between current altitude and desired altitude.  Centimeters
-    int32_t altitude_error_cm;
-
     // speed scaler for control surfaces, updated at 10Hz
     float surface_speed_scaler = 1.0;
 
@@ -478,10 +476,6 @@ private:
 
         // Minimum pitch to hold during takeoff command execution.  Hundredths of a degree
         int16_t takeoff_pitch_cd;
-
-        // used to 'wiggle' servos in idle mode to prevent them freezing
-        // at high altitudes
-        uint8_t idle_wiggle_stage;
 
         // Flag for using gps ground course instead of INS yaw.  Set false when takeoff command in process.
         bool takeoff_complete;
@@ -1109,7 +1103,6 @@ private:
     void avoidance_adsb_update(void);
 
     // servos.cpp
-    void set_servos_idle(void);
     void set_servos();
     float apply_throttle_limits(float throttle_in);
     void set_throttle(void);
