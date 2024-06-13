@@ -38,6 +38,7 @@ public:
     bool is_initialized() override;
     bool tx_pending() override;
     uint32_t get_usb_baud() const override;
+    uint8_t get_usb_parity() const override;
 
     // disable TX/RX pins for unusued uart
     void disable_rxtx(void) const override;
@@ -74,6 +75,7 @@ public:
         int8_t txinv_gpio;
         uint8_t txinv_polarity;
         uint8_t endpoint_id;
+        uint8_t rts_alternative_function;
         uint8_t get_index(void) const {
             return uint8_t(this - &_serial_tab[0]);
         }

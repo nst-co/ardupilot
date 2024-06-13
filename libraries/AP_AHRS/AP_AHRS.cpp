@@ -3536,7 +3536,7 @@ bool AP_AHRS::get_velocity_NED(Vector3f &vec) const
 
 // return location corresponding to vector relative to the
 // vehicle's origin
-bool AP_AHRS::get_location_from_origin_offset(Location &loc, const Vector3p &offset_ned) const
+bool AP_AHRS::get_location_from_origin_offset_NED(Location &loc, const Vector3p &offset_ned) const
 {
     if (!get_origin(loc)) {
         return false;
@@ -3548,7 +3548,7 @@ bool AP_AHRS::get_location_from_origin_offset(Location &loc, const Vector3p &off
 
 // return location corresponding to vector relative to the
 // vehicle's home location
-bool AP_AHRS::get_location_from_home_offset(Location &loc, const Vector3p &offset_ned) const
+bool AP_AHRS::get_location_from_home_offset_NED(Location &loc, const Vector3p &offset_ned) const
 {
     if (!home_is_set()) {
         return false;
@@ -3568,6 +3568,13 @@ float AP_AHRS::get_EAS2TAS(void) const
         return state.EAS2TAS;
     }
     return 1.0;
+}
+
+// get air density / sea level density - decreases as altitude climbs
+float AP_AHRS::get_air_density_ratio(void) const
+{
+    const float eas2tas = get_EAS2TAS();
+    return 1.0 / sq(eas2tas);
 }
 
 // singleton instance
