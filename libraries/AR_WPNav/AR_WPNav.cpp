@@ -604,8 +604,10 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
     _cross_track_error = calc_crosstrack_error(current_loc);
 
     // update position controller
+    /*
     _pos_control.set_reversed(_reversed);
     _pos_control.update(dt);
+    */
 
     // handle pivot turns
     if (_pivot.active()) {
