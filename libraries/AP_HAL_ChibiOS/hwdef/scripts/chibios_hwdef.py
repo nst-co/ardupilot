@@ -758,7 +758,7 @@ class ChibiOSHWDef(object):
     def has_sdcard_spi(self):
         '''check for sdcard connected to spi bus'''
         for dev in self.spidev:
-            if(dev[0] == 'sdcard'):
+            if dev[0] == 'sdcard':
                 return True
         return False
 
@@ -1260,7 +1260,12 @@ class ChibiOSHWDef(object):
 #endif
 #define STM32_FLASH_DISABLE_ISR 0
 ''')
-            if not self.env_vars['EXT_FLASH_SIZE_MB'] and not args.signed_fw:
+            # get bootloader flash space, if larger than 128k we can enable Heap
+            flash_size = self.get_config('FLASH_USE_MAX_KB', type=int, default=0)
+            if flash_size == 0:
+                flash_size = self.get_config('FLASH_SIZE_KB', type=int)
+            flash_length = min(flash_size, self.get_config('FLASH_BOOTLOADER_LOAD_KB', type=int))
+            if not self.env_vars['EXT_FLASH_SIZE_MB'] and not args.signed_fw and flash_length < 128:
                 f.write('''
 #ifndef CH_CFG_USE_MEMCORE
 #define CH_CFG_USE_MEMCORE FALSE
@@ -1923,11 +1928,13 @@ INCLUDE common.ld
                 f.write("%s, " % self.get_extra_bylabel(dev + "_TXINV", "POL", "0"))
 
                 # USB endpoint ID, not used
-                f.write("0, ") 
+                f.write("0, ")
 
                 # Find and add RTS alt fuction number if avalable
                 def get_RTS_alt_function():
-                    # Typicaly we do software RTS control, so there is no requirement for the pin to have valid UART RTS alternative function
+                    # Typicaly we do software RTS control, so there is
+                    # no requirement for the pin to have valid UART
+                    # RTS alternative function
                     # If it does this enables hardware flow control for RS-485
                     lib = self.get_mcu_lib(self.mcu_type)
                     if (rts_line == "0") or (rts_line_name not in self.bylabel) or not hasattr(lib, "AltFunction_map"):
