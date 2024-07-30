@@ -60,15 +60,15 @@
 #define AUTOTUNE_RP_MAX                    2.0     // maximum Rate P value
 #define AUTOTUNE_SP_MAX                   40.0     // maximum Stab P value
 #define AUTOTUNE_SP_MIN                    0.5     // maximum Stab P value
-#define AUTOTUNE_RP_ACCEL_MIN            4000.0     // Minimum acceleration for Roll and Pitch
-#define AUTOTUNE_Y_ACCEL_MIN             1000.0     // Minimum acceleration for Yaw
+#define AUTOTUNE_RP_ACCEL_MIN            4000.0    // Minimum acceleration for Roll and Pitch
+#define AUTOTUNE_Y_ACCEL_MIN             1000.0    // Minimum acceleration for Yaw
 #define AUTOTUNE_Y_FILT_FREQ              10.0     // Autotune filter frequency when testing Yaw
 #define AUTOTUNE_D_UP_DOWN_MARGIN          0.2     // The margin below the target that we tune D in
-#define AUTOTUNE_RD_BACKOFF                1.0    // Rate D gains are reduced to 50% of their maximum value discovered during tuning
+#define AUTOTUNE_RD_BACKOFF                1.0     // Rate D gains are reduced to 50% of their maximum value discovered during tuning
 #define AUTOTUNE_RP_BACKOFF                1.0     // Rate P gains are reduced to 97.5% of their maximum value discovered during tuning
-#define AUTOTUNE_SP_BACKOFF                0.9f     // Stab P gains are reduced to 90% of their maximum value discovered during tuning
+#define AUTOTUNE_SP_BACKOFF                0.9     // Stab P gains are reduced to 90% of their maximum value discovered during tuning
 #define AUTOTUNE_ACCEL_RP_BACKOFF          1.0     // back off from maximum acceleration
-#define AUTOTUNE_ACCEL_Y_BACKOFF           1.0    // back off from maximum acceleration
+#define AUTOTUNE_ACCEL_Y_BACKOFF           1.0     // back off from maximum acceleration
 
 // roll and pitch axes
 #define AUTOTUNE_TARGET_RATE_RLLPIT_CDS     18000   // target roll/pitch rate during AUTOTUNE_STEP_TWITCHING step
@@ -345,7 +345,7 @@ void AC_AutoTune_Multi::load_intra_test_gains()
 void AC_AutoTune_Multi::load_test_gains()
 {
     switch (axis) {
-    case ROLL:
+    case AxisType::ROLL:
         attitude_control->get_rate_roll_pid().kP(tune_roll_rp);
         attitude_control->get_rate_roll_pid().kI(tune_roll_rp * 0.01);
         attitude_control->get_rate_roll_pid().kD(tune_roll_rd);
@@ -355,7 +355,7 @@ void AC_AutoTune_Multi::load_test_gains()
         attitude_control->get_rate_roll_pid().slew_limit(0.0);
         attitude_control->get_angle_roll_p().kP(tune_roll_sp);
         break;
-    case PITCH:
+    case AxisType::PITCH:
         attitude_control->get_rate_pitch_pid().kP(tune_pitch_rp);
         attitude_control->get_rate_pitch_pid().kI(tune_pitch_rp * 0.01);
         attitude_control->get_rate_pitch_pid().kD(tune_pitch_rd);
@@ -365,13 +365,13 @@ void AC_AutoTune_Multi::load_test_gains()
         attitude_control->get_rate_pitch_pid().slew_limit(0.0);
         attitude_control->get_angle_pitch_p().kP(tune_pitch_sp);
         break;
-    case YAW:
-    case YAW_D:
+    case AxisType::YAW:
+    case AxisType::YAW_D:
         attitude_control->get_rate_yaw_pid().kP(tune_yaw_rp);
         attitude_control->get_rate_yaw_pid().kI(tune_yaw_rp * 0.01);
         attitude_control->get_rate_yaw_pid().ff(0.0);
         attitude_control->get_rate_yaw_pid().kDff(0.0);
-        if (axis == YAW_D) {
+        if (axis == AxisType::YAW_D) {
             attitude_control->get_rate_yaw_pid().kD(tune_yaw_rd);
         } else {
             attitude_control->get_rate_yaw_pid().kD(0.0);
@@ -502,16 +502,16 @@ void AC_AutoTune_Multi::save_tuning_gains()
 void AC_AutoTune_Multi::report_final_gains(AxisType test_axis) const
 {
     switch (test_axis) {
-        case ROLL:
+        case AxisType::ROLL:
             report_axis_gains("Roll", tune_roll_rp, tune_roll_rp*AUTOTUNE_PI_RATIO_FINAL, tune_roll_rd, tune_roll_sp, tune_roll_accel);
             break;
-        case PITCH:
+        case AxisType::PITCH:
             report_axis_gains("Pitch", tune_pitch_rp, tune_pitch_rp*AUTOTUNE_PI_RATIO_FINAL, tune_pitch_rd, tune_pitch_sp, tune_pitch_accel);
             break;
-        case YAW:
+        case AxisType::YAW:
             report_axis_gains("Yaw(E)", tune_yaw_rp, tune_yaw_rp*AUTOTUNE_YAW_PI_RATIO_FINAL, 0, tune_yaw_sp, tune_yaw_accel);
             break;
-        case YAW_D:
+        case AxisType::YAW_D:
             report_axis_gains("Yaw(D)", tune_yaw_rp, tune_yaw_rp*AUTOTUNE_YAW_PI_RATIO_FINAL, tune_yaw_rd, tune_yaw_sp, tune_yaw_accel);
             break;
     }
@@ -573,7 +573,6 @@ void AC_AutoTune_Multi::twitching_test_rate(float angle, float rate, float rate_
 // update min and max and test for end conditions
 void AC_AutoTune_Multi::twitching_abort_rate(float angle, float rate, float angle_max, float meas_rate_min, float angle_min)
 {
-    const uint32_t now = AP_HAL::millis();
     if (angle >= angle_max) {
         if (is_equal(rate, meas_rate_min) || (angle_min > 0.95 * angle_max)) {
             // we have reached the angle limit before completing the measurement of maximum and minimum
@@ -587,10 +586,7 @@ void AC_AutoTune_Multi::twitching_abort_rate(float angle, float rate, float angl
                 LOGGER_WRITE_EVENT(LogEvent::AUTOTUNE_FAILED);
             }
             // ignore result and start test again
-            step = WAITING_FOR_LEVEL;
-            positive_direction = twitch_reverse_direction();
-            step_start_time_ms = now;
-            level_start_time_ms = now;
+            step = ABORT;
         } else {
             step = UPDATE_GAINS;
         }
@@ -653,11 +649,11 @@ void AC_AutoTune_Multi::twitching_test_angle(float angle, float rate, float angl
 }
 
 // twitching_measure_acceleration - measure rate of change of measurement
-void AC_AutoTune_Multi::twitching_measure_acceleration(float &rate_of_change, float rate_measurement, float &rate_measurement_max) const
+void AC_AutoTune_Multi::twitching_measure_acceleration(float &accel_average, float rate, float rate_max) const
 {
-    if (rate_measurement_max < rate_measurement) {
-        rate_measurement_max = rate_measurement;
-        rate_of_change = (1000.0f*rate_measurement_max)/(AP_HAL::millis() - step_start_time_ms);
+    if (rate_max < rate) {
+        rate_max = rate;
+        accel_average = (1000.0 * rate_max) / (AP_HAL::millis() - step_start_time_ms);
     }
 }
 
@@ -665,16 +661,16 @@ void AC_AutoTune_Multi::twitching_measure_acceleration(float &rate_of_change, fl
 void AC_AutoTune_Multi::updating_rate_p_up_all(AxisType test_axis)
 {
     switch (test_axis) {
-    case ROLL:
+    case AxisType::ROLL:
         updating_rate_p_up_d_down(tune_roll_rd, min_d, AUTOTUNE_RD_STEP, tune_roll_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case PITCH:
+    case AxisType::PITCH:
         updating_rate_p_up_d_down(tune_pitch_rd, min_d, AUTOTUNE_RD_STEP, tune_pitch_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case YAW:
+    case AxisType::YAW:
         updating_rate_p_up_d_down(tune_yaw_rLPF, AUTOTUNE_RLPF_MIN, AUTOTUNE_RD_STEP, tune_yaw_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max, false);
         break;
-    case YAW_D:
+    case AxisType::YAW_D:
         updating_rate_p_up_d_down(tune_yaw_rd, min_d, AUTOTUNE_RD_STEP, tune_yaw_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
     }
@@ -684,16 +680,16 @@ void AC_AutoTune_Multi::updating_rate_p_up_all(AxisType test_axis)
 void AC_AutoTune_Multi::updating_rate_d_up_all(AxisType test_axis)
 {
     switch (test_axis) {
-    case ROLL:
+    case AxisType::ROLL:
         updating_rate_d_up(tune_roll_rd, min_d, AUTOTUNE_RD_MAX, AUTOTUNE_RD_STEP, tune_roll_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case PITCH:
+    case AxisType::PITCH:
         updating_rate_d_up(tune_pitch_rd, min_d, AUTOTUNE_RD_MAX, AUTOTUNE_RD_STEP, tune_pitch_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case YAW:
+    case AxisType::YAW:
         updating_rate_d_up(tune_yaw_rLPF, AUTOTUNE_RLPF_MIN, AUTOTUNE_RLPF_MAX, AUTOTUNE_RD_STEP, tune_yaw_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case YAW_D:
+    case AxisType::YAW_D:
         updating_rate_d_up(tune_yaw_rd, min_d, AUTOTUNE_RD_MAX, AUTOTUNE_RD_STEP, tune_yaw_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
     }
@@ -703,16 +699,16 @@ void AC_AutoTune_Multi::updating_rate_d_up_all(AxisType test_axis)
 void AC_AutoTune_Multi::updating_rate_d_down_all(AxisType test_axis)
 {
     switch (test_axis) {
-    case ROLL:
+    case AxisType::ROLL:
         updating_rate_d_down(tune_roll_rd, min_d, AUTOTUNE_RD_STEP, tune_roll_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case PITCH:
+    case AxisType::PITCH:
         updating_rate_d_down(tune_pitch_rd, min_d, AUTOTUNE_RD_STEP, tune_pitch_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case YAW:
+    case AxisType::YAW:
         updating_rate_d_down(tune_yaw_rLPF, AUTOTUNE_RLPF_MIN, AUTOTUNE_RD_STEP, tune_yaw_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
-    case YAW_D:
+    case AxisType::YAW_D:
         updating_rate_d_down(tune_yaw_rd, min_d, AUTOTUNE_RD_STEP, tune_yaw_rp, AUTOTUNE_RP_MIN, AUTOTUNE_RP_MAX, AUTOTUNE_RP_STEP, target_rate, test_rate_min, test_rate_max);
         break;
     }
@@ -722,14 +718,14 @@ void AC_AutoTune_Multi::updating_rate_d_down_all(AxisType test_axis)
 void AC_AutoTune_Multi::updating_angle_p_up_all(AxisType test_axis)
 {
     switch (test_axis) {
-    case ROLL:
+    case AxisType::ROLL:
         updating_angle_p_up(tune_roll_sp, AUTOTUNE_SP_MAX, AUTOTUNE_SP_STEP, target_angle, test_angle_max, test_rate_min, test_rate_max);
         break;
-    case PITCH:
+    case AxisType::PITCH:
         updating_angle_p_up(tune_pitch_sp, AUTOTUNE_SP_MAX, AUTOTUNE_SP_STEP, target_angle, test_angle_max, test_rate_min, test_rate_max);
         break;
-    case YAW:
-    case YAW_D:
+    case AxisType::YAW:
+    case AxisType::YAW_D:
         updating_angle_p_up(tune_yaw_sp, AUTOTUNE_SP_MAX, AUTOTUNE_SP_STEP, target_angle, test_angle_max, test_rate_min, test_rate_max);
         break;
     }
@@ -739,14 +735,14 @@ void AC_AutoTune_Multi::updating_angle_p_up_all(AxisType test_axis)
 void AC_AutoTune_Multi::updating_angle_p_down_all(AxisType test_axis)
 {
     switch (test_axis) {
-    case ROLL:
+    case AxisType::ROLL:
         updating_angle_p_down(tune_roll_sp, AUTOTUNE_SP_MIN, AUTOTUNE_SP_STEP, target_angle, test_angle_max, test_rate_min, test_rate_max);
         break;
-    case PITCH:
+    case AxisType::PITCH:
         updating_angle_p_down(tune_pitch_sp, AUTOTUNE_SP_MIN, AUTOTUNE_SP_STEP, target_angle, test_angle_max, test_rate_min, test_rate_max);
         break;
-    case YAW:
-    case YAW_D:
+    case AxisType::YAW:
+    case AxisType::YAW_D:
         updating_angle_p_down(tune_yaw_sp, AUTOTUNE_SP_MIN, AUTOTUNE_SP_STEP, target_angle, test_angle_max, test_rate_min, test_rate_max);
         break;
     }
@@ -760,19 +756,19 @@ void AC_AutoTune_Multi::set_gains_post_tune(AxisType test_axis)
         break;
     case RD_DOWN:
         switch (test_axis) {
-        case ROLL:
+        case AxisType::ROLL:
             tune_roll_rd = MAX(min_d, tune_roll_rd * AUTOTUNE_RD_BACKOFF);
             tune_roll_rp = MAX(AUTOTUNE_RP_MIN, tune_roll_rp * AUTOTUNE_RD_BACKOFF);
             break;
-        case PITCH:
+        case AxisType::PITCH:
             tune_pitch_rd = MAX(min_d, tune_pitch_rd * AUTOTUNE_RD_BACKOFF);
             tune_pitch_rp = MAX(AUTOTUNE_RP_MIN, tune_pitch_rp * AUTOTUNE_RD_BACKOFF);
             break;
-        case YAW:
+        case AxisType::YAW:
             tune_yaw_rLPF = MAX(AUTOTUNE_RLPF_MIN, tune_yaw_rLPF * AUTOTUNE_RD_BACKOFF);
             tune_yaw_rp = MAX(AUTOTUNE_RP_MIN, tune_yaw_rp * AUTOTUNE_RD_BACKOFF);
             break;
-        case YAW_D:
+        case AxisType::YAW_D:
             tune_yaw_rd = MAX(min_d, tune_yaw_rd * AUTOTUNE_RD_BACKOFF);
             tune_yaw_rp = MAX(AUTOTUNE_RP_MIN, tune_yaw_rp * AUTOTUNE_RD_BACKOFF);
             break;
@@ -780,14 +776,14 @@ void AC_AutoTune_Multi::set_gains_post_tune(AxisType test_axis)
         break;
     case RP_UP:
         switch (test_axis) {
-        case ROLL:
+        case AxisType::ROLL:
             tune_roll_rp = MAX(AUTOTUNE_RP_MIN, tune_roll_rp * AUTOTUNE_RP_BACKOFF);
             break;
-        case PITCH:
+        case AxisType::PITCH:
             tune_pitch_rp = MAX(AUTOTUNE_RP_MIN, tune_pitch_rp * AUTOTUNE_RP_BACKOFF);
             break;
-        case YAW:
-        case YAW_D:
+        case AxisType::YAW:
+        case AxisType::YAW_D:
             tune_yaw_rp = MAX(AUTOTUNE_RP_MIN, tune_yaw_rp * AUTOTUNE_RP_BACKOFF);
             break;
         }
@@ -796,16 +792,16 @@ void AC_AutoTune_Multi::set_gains_post_tune(AxisType test_axis)
         break;
     case SP_UP:
         switch (test_axis) {
-        case ROLL:
+        case AxisType::ROLL:
             tune_roll_sp = MAX(AUTOTUNE_SP_MIN, tune_roll_sp * AUTOTUNE_SP_BACKOFF);
             tune_roll_accel = MAX(AUTOTUNE_RP_ACCEL_MIN, test_accel_max * AUTOTUNE_ACCEL_RP_BACKOFF);
             break;
-        case PITCH:
+        case AxisType::PITCH:
             tune_pitch_sp = MAX(AUTOTUNE_SP_MIN, tune_pitch_sp * AUTOTUNE_SP_BACKOFF);
             tune_pitch_accel = MAX(AUTOTUNE_RP_ACCEL_MIN, test_accel_max * AUTOTUNE_ACCEL_RP_BACKOFF);
             break;
-        case YAW:
-        case YAW_D:
+        case AxisType::YAW:
+        case AxisType::YAW_D:
             tune_yaw_sp = MAX(AUTOTUNE_SP_MIN, tune_yaw_sp * AUTOTUNE_SP_BACKOFF);
             tune_yaw_accel = MAX(AUTOTUNE_Y_ACCEL_MIN, test_accel_max * AUTOTUNE_ACCEL_Y_BACKOFF);
             break;
@@ -1060,31 +1056,31 @@ void AC_AutoTune_Multi::Log_AutoTune()
 {
     if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
         switch (axis) {
-        case ROLL:
+        case AxisType::ROLL:
             Log_Write_AutoTune(axis, tune_type, target_angle, test_angle_min, test_angle_max, tune_roll_rp, tune_roll_rd, tune_roll_sp, test_accel_max);
             break;
-        case PITCH:
+        case AxisType::PITCH:
             Log_Write_AutoTune(axis, tune_type, target_angle, test_angle_min, test_angle_max, tune_pitch_rp, tune_pitch_rd, tune_pitch_sp, test_accel_max);
             break;
-        case YAW:
+        case AxisType::YAW:
             Log_Write_AutoTune(axis, tune_type, target_angle, test_angle_min, test_angle_max, tune_yaw_rp, tune_yaw_rLPF, tune_yaw_sp, test_accel_max);
             break;
-        case YAW_D:
+        case AxisType::YAW_D:
             Log_Write_AutoTune(axis, tune_type, target_angle, test_angle_min, test_angle_max, tune_yaw_rp, tune_yaw_rd, tune_yaw_sp, test_accel_max);
             break;
         }
     } else {
         switch (axis) {
-        case ROLL:
+        case AxisType::ROLL:
             Log_Write_AutoTune(axis, tune_type, target_rate, test_rate_min, test_rate_max, tune_roll_rp, tune_roll_rd, tune_roll_sp, test_accel_max);
             break;
-        case PITCH:
+        case AxisType::PITCH:
             Log_Write_AutoTune(axis, tune_type, target_rate, test_rate_min, test_rate_max, tune_pitch_rp, tune_pitch_rd, tune_pitch_sp, test_accel_max);
             break;
-        case YAW:
+        case AxisType::YAW:
             Log_Write_AutoTune(axis, tune_type, target_rate, test_rate_min, test_rate_max, tune_yaw_rp, tune_yaw_rLPF, tune_yaw_sp, test_accel_max);
             break;
-        case YAW_D:
+        case AxisType::YAW_D:
             Log_Write_AutoTune(axis, tune_type, target_rate, test_rate_min, test_rate_max, tune_yaw_rp, tune_yaw_rd, tune_yaw_sp, test_accel_max);
             break;
         }
@@ -1112,7 +1108,7 @@ void AC_AutoTune_Multi::Log_AutoTuneDetails()
 // @Field: ddt: maximum measured twitching acceleration
 
 // Write an Autotune data packet
-void AC_AutoTune_Multi::Log_Write_AutoTune(uint8_t _axis, uint8_t tune_step, float meas_target, float meas_min, float meas_max, float new_gain_rp, float new_gain_rd, float new_gain_sp, float new_ddt)
+void AC_AutoTune_Multi::Log_Write_AutoTune(AxisType _axis, uint8_t tune_step, float meas_target, float meas_min, float meas_max, float new_gain_rp, float new_gain_rd, float new_gain_sp, float new_ddt)
 {
     AP::logger().Write(
         "ATUN",
@@ -1188,40 +1184,47 @@ void AC_AutoTune_Multi::twitch_test_init()
 {
     float target_max_rate;
     switch (axis) {
-    case ROLL: {
+    case AxisType::ROLL:
+        angle_abort = target_angle_max_rp_cd();
         target_max_rate = MAX(AUTOTUNE_TARGET_MIN_RATE_RLLPIT_CDS, step_scaler * AUTOTUNE_TARGET_RATE_RLLPIT_CDS);
         target_rate = constrain_float(ToDeg(attitude_control->max_rate_step_bf_roll()) * 100.0, AUTOTUNE_TARGET_MIN_RATE_RLLPIT_CDS, target_max_rate);
         target_angle = constrain_float(ToDeg(attitude_control->max_angle_step_bf_roll()) * 100.0, target_angle_min_rp_cd(), target_angle_max_rp_cd());
         rotation_rate_filt.set_cutoff_frequency(attitude_control->get_rate_roll_pid().filt_D_hz() * 2.0);
         break;
-    }
-    case PITCH: {
+
+    case AxisType::PITCH:
+        angle_abort = target_angle_max_rp_cd();
         target_max_rate = MAX(AUTOTUNE_TARGET_MIN_RATE_RLLPIT_CDS, step_scaler * AUTOTUNE_TARGET_RATE_RLLPIT_CDS);
         target_rate = constrain_float(ToDeg(attitude_control->max_rate_step_bf_pitch()) * 100.0, AUTOTUNE_TARGET_MIN_RATE_RLLPIT_CDS, target_max_rate);
         target_angle = constrain_float(ToDeg(attitude_control->max_angle_step_bf_pitch()) * 100.0, target_angle_min_rp_cd(), target_angle_max_rp_cd());
         rotation_rate_filt.set_cutoff_frequency(attitude_control->get_rate_pitch_pid().filt_D_hz() * 2.0);
         break;
-    }
-    case YAW:
-    case YAW_D: {
+
+    case AxisType::YAW:
+    case AxisType::YAW_D:
+        angle_abort = target_angle_max_y_cd();
         target_max_rate = MAX(AUTOTUNE_TARGET_MIN_RATE_YAW_CDS, step_scaler*AUTOTUNE_TARGET_RATE_YAW_CDS);
         target_rate = constrain_float(ToDeg(attitude_control->max_rate_step_bf_yaw() * 0.75) * 100.0, AUTOTUNE_TARGET_MIN_RATE_YAW_CDS, target_max_rate);
         target_angle = constrain_float(ToDeg(attitude_control->max_angle_step_bf_yaw() * 0.75) * 100.0, target_angle_min_y_cd(), target_angle_max_y_cd());
-        if (axis == YAW_D) {
+        if (axis == AxisType::YAW_D) {
             rotation_rate_filt.set_cutoff_frequency(attitude_control->get_rate_yaw_pid().filt_D_hz() * 2.0);
         } else {
             rotation_rate_filt.set_cutoff_frequency(AUTOTUNE_Y_FILT_FREQ);
         }
         break;
     }
-    }
 
     if ((tune_type == SP_DOWN) || (tune_type == SP_UP)) {
+        // todo: consider if this should be done for other axis
         rotation_rate_filt.reset(start_rate);
     } else {
-        rotation_rate_filt.reset(0);
+        rotation_rate_filt.reset(0.0);
     }
-
+    twitch_first_iter = true;
+    test_rate_max = 0.0;
+    test_rate_min = 0.0;
+    test_angle_max = 0.0;
+    test_angle_min = 0.0;
 }
 
 //run twitch test
@@ -1237,16 +1240,16 @@ void AC_AutoTune_Multi::twitch_test_run(AxisType test_axis, const float dir_sign
             twitch_first_iter = false;
             // Testing increasing stabilize P gain so will set lean angle target
             switch (test_axis) {
-            case ROLL:
+            case AxisType::ROLL:
                 // request roll to 20deg
                 attitude_control->input_angle_step_bf_roll_pitch_yaw(dir_sign * target_angle, 0.0, 0.0);
                 break;
-            case PITCH:
+            case AxisType::PITCH:
                 // request pitch to 20deg
                 attitude_control->input_angle_step_bf_roll_pitch_yaw(0.0, dir_sign * target_angle, 0.0);
                 break;
-            case YAW:
-            case YAW_D:
+            case AxisType::YAW:
+            case AxisType::YAW_D:
                 // request yaw to 20deg
                 attitude_control->input_angle_step_bf_roll_pitch_yaw(0.0, 0.0, dir_sign * target_angle);
                 break;
@@ -1260,16 +1263,16 @@ void AC_AutoTune_Multi::twitch_test_run(AxisType test_axis, const float dir_sign
         // Rate controller will use existing body-frame rates and convert to motor outputs
         // for all axes except the one we override here.
         switch (test_axis) {
-        case ROLL:
+        case AxisType::ROLL:
             // override body-frame roll rate
             attitude_control->rate_bf_roll_target(dir_sign * target_rate + start_rate);
             break;
-        case PITCH:
+        case AxisType::PITCH:
             // override body-frame pitch rate
             attitude_control->rate_bf_pitch_target(dir_sign * target_rate + start_rate);
             break;
-        case YAW:
-        case YAW_D:
+        case AxisType::YAW:
+        case AxisType::YAW_D:
             // override body-frame yaw rate
             attitude_control->rate_bf_yaw_target(dir_sign * target_rate + start_rate);
             break;
@@ -1279,16 +1282,16 @@ void AC_AutoTune_Multi::twitch_test_run(AxisType test_axis, const float dir_sign
     // capture this iteration's rotation rate and lean angle
     float gyro_reading = 0;
     switch (test_axis) {
-    case ROLL:
+    case AxisType::ROLL:
         gyro_reading = ahrs_view->get_gyro().x;
         lean_angle = dir_sign * (ahrs_view->roll_sensor - (int32_t)start_angle);
         break;
-    case PITCH:
+    case AxisType::PITCH:
         gyro_reading = ahrs_view->get_gyro().y;
         lean_angle = dir_sign * (ahrs_view->pitch_sensor - (int32_t)start_angle);
         break;
-    case YAW:
-    case YAW_D:
+    case AxisType::YAW:
+    case AxisType::YAW_D:
         gyro_reading = ahrs_view->get_gyro().z;
         lean_angle = dir_sign * wrap_180_cd(ahrs_view->yaw_sensor-(int32_t)start_angle);
         break;
@@ -1312,18 +1315,18 @@ void AC_AutoTune_Multi::twitch_test_run(AxisType test_axis, const float dir_sign
     case RD_UP:
     case RD_DOWN:
         twitching_test_rate(lean_angle, rotation_rate, target_rate, test_rate_min, test_rate_max, test_angle_min);
-        twitching_measure_acceleration(test_accel_max, rotation_rate, rate_max);
-        twitching_abort_rate(lean_angle, rotation_rate, angle_finish, test_rate_min, test_angle_min);
+        twitching_measure_acceleration(test_accel_max, rotation_rate, test_rate_max);
+        twitching_abort_rate(lean_angle, rotation_rate, angle_abort, test_rate_min, test_angle_min);
         break;
     case RP_UP:
-        twitching_test_rate(lean_angle, rotation_rate, target_rate*(1+0.5f*aggressiveness), test_rate_min, test_rate_max, test_angle_min);
-        twitching_measure_acceleration(test_accel_max, rotation_rate, rate_max);
-        twitching_abort_rate(lean_angle, rotation_rate, angle_finish, test_rate_min, test_angle_min);
+        twitching_test_rate(lean_angle, rotation_rate, target_rate * (1 + 0.5 * aggressiveness), test_rate_min, test_rate_max, test_angle_min);
+        twitching_measure_acceleration(test_accel_max, rotation_rate, test_rate_max);
+        twitching_abort_rate(lean_angle, rotation_rate, angle_abort, test_rate_min, test_angle_min);
         break;
     case SP_DOWN:
     case SP_UP:
-        twitching_test_angle(lean_angle, rotation_rate, target_angle*(1+0.5f*aggressiveness), test_angle_min, test_angle_max, test_rate_min, test_rate_max);
-        twitching_measure_acceleration(test_accel_max, rotation_rate - dir_sign * start_rate, rate_max);
+        twitching_test_angle(lean_angle, rotation_rate, target_angle * (1 + 0.5 * aggressiveness), test_angle_min, test_angle_max, test_rate_min, test_rate_max);
+        twitching_measure_acceleration(test_accel_max, rotation_rate - dir_sign * start_rate, test_rate_max);
         break;
     case RFF_UP:
     case MAX_GAINS:

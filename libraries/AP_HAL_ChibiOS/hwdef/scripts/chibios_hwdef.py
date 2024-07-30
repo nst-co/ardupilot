@@ -18,6 +18,12 @@ import shutil
 import filecmp
 
 
+class ChibiOSHWDefIncludeNotFoundException(Exception):
+    def __init__(self, hwdef, includer):
+        self.hwdef = hwdef
+        self.includer = includer
+
+
 class ChibiOSHWDef(object):
 
     # output variables for each pin
@@ -1865,6 +1871,7 @@ INCLUDE common.ld
         OTG2_index = None
         devlist = []
         have_rts_cts = False
+        have_low_noise = False
         crash_uart = None
 
         # write config for CrashCatcher UART
@@ -1878,6 +1885,14 @@ INCLUDE common.ld
             f.write('#define IRQ_DISABLE_HAL_CRASH_SERIAL_PORT() nvicDisableVector(STM32_%s_NUMBER)\n' % crash_uart)
             f.write('#define RCC_RESET_HAL_CRASH_SERIAL_PORT() rccReset%s(); rccEnable%s(true)\n' % (crash_uart, crash_uart))
             f.write('#define HAL_CRASH_SERIAL_PORT_CLOCK STM32_%sCLK\n' % crash_uart)
+        # check if we have a UART with a low noise RX pin
+        for num, dev in enumerate(serial_list):
+            if not dev.startswith('UART') and not dev.startswith('USART'):
+                continue
+            rx_port = dev + '_RX'
+            if rx_port in self.bylabel and self.bylabel[rx_port].has_extra('LOW_NOISE'):
+                have_low_noise = True
+                break
         for num, dev in enumerate(serial_list):
             if dev.startswith('UART'):
                 n = int(dev[4:])
@@ -1904,12 +1919,20 @@ INCLUDE common.ld
 
             if dev.startswith('OTG2'):
                 f.write(
-                    '#define HAL_%s_CONFIG {(BaseSequentialStream*) &SDU2, 2, true, false, 0, 0, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, UINT8_MAX}\n' % dev)  # noqa
+                    '#define HAL_%s_CONFIG {(BaseSequentialStream*) &SDU2, 2, true, false, 0, 0, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, UINT8_MAX,' % dev)  # noqa
+                if have_low_noise:
+                    f.write('false}\n')
+                else:
+                    f.write('}\n')
                 OTG2_index = serial_list.index(dev)
                 self.dual_USB_enabled = True
             elif dev.startswith('OTG'):
                 f.write(
-                    '#define HAL_%s_CONFIG {(BaseSequentialStream*) &SDU1, 1, true, false, 0, 0, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, UINT8_MAX}\n' % dev)  # noqa
+                    '#define HAL_%s_CONFIG {(BaseSequentialStream*) &SDU1, 1, true, false, 0, 0, false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, UINT8_MAX,' % dev)  # noqa
+                if have_low_noise:
+                    f.write('false}\n')
+                else:
+                    f.write('}\n')
             else:
                 need_uart_driver = True
                 f.write(
@@ -1948,9 +1971,17 @@ INCLUDE common.ld
                             if s not in lib.AltFunction_map:
                                 return "UINT8_MAX"
                             return lib.AltFunction_map[s]
+                if have_low_noise:
+                    low_noise = 'false'
+                    rx_port = dev + '_RX'
+                    if rx_port in self.bylabel and self.bylabel[rx_port].has_extra('LOW_NOISE'):
+                        low_noise = 'true'
+                    f.write("%s, %s}\n" % (get_RTS_alt_function(), low_noise))
+                else:
+                    f.write("%s}\n" % get_RTS_alt_function())
 
-                f.write("%s}\n" % get_RTS_alt_function())
-
+        if have_low_noise:
+            f.write('#define HAL_HAVE_LOW_NOISE_UART 1\n')
         if have_rts_cts:
             f.write('#define AP_FEATURE_RTSCTS 1\n')
         if OTG2_index is not None:
@@ -3167,8 +3198,13 @@ Please run: Tools/scripts/build_bootloaders.py %s
 
         self.add_firmware_defaults_from_file(f, "defaults_iofirmware.h", "IOMCU Firmware")
 
-    def is_periph_fw_unprocessed_file(self, hwdef):
+    def is_periph_fw_unprocessed_file(self, hwdef, includer=None):
         '''helper/recursion function for is_periph_fw_unprocessed'''
+        if not os.path.exists(hwdef):
+            raise ChibiOSHWDefIncludeNotFoundException(
+                os.path.normpath(hwdef),
+                os.path.normpath(includer)
+            )
         with open(hwdef, "r") as f:
             content = f.read()
             if 'AP_PERIPH' in content:
@@ -3176,7 +3212,7 @@ Please run: Tools/scripts/build_bootloaders.py %s
             # process any include lines:
             for m in re.finditer(r"^include\s+([^\s]*)", content, re.MULTILINE):
                 include_path = os.path.join(os.path.dirname(hwdef), m.group(1))
-                if self.is_periph_fw_unprocessed_file(include_path):
+                if self.is_periph_fw_unprocessed_file(include_path, includer=hwdef):
                     return True
 
     def is_periph_fw_unprocessed(self):
