@@ -217,7 +217,7 @@ public:
         k_param_ins,
         k_param_compass,
         k_param_rcmap,
-        k_param_L1_controller,          // unused
+        k_param_L1_controller,
         k_param_steerController_old,    // unused
         k_param_barometer,
         k_param_notify,

@@ -275,6 +275,10 @@ const AP_Param::Info Rover::var_info[] = {
 
     // AP_SerialManager was here
 
+    // @Group: NAVL1_
+    // @Path: ../libraries/AP_L1_Control/AP_L1_Control.cpp
+    GOBJECT(L1_controller,         "NAVL1_",   AP_L1_Control),
+
 #if AP_RANGEFINDER_ENABLED
     // @Group: RNGFND
     // @Path: ../libraries/AP_RangeFinder/AP_RangeFinder.cpp
