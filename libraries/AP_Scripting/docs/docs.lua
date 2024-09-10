@@ -392,6 +392,10 @@ efi = {}
 ---@return EFI_State_ud
 function efi:get_state() end
 
+-- get last update time in milliseconds
+---@return uint32_t_ud
+function efi:get_last_update_ms() end
+
 -- desc
 ---@param instance integer
 ---@return AP_EFI_Backend_ud|nil
@@ -1405,6 +1409,16 @@ function AP_Camera__camera_state_t_ud:take_pic_incr() end
 ---@return AP_Camera__camera_state_t_ud|nil
 function camera:get_state(instance) end
 
+-- Change a camera setting to a given value
+---@param instance integer
+---@param setting integer
+---| '0' # THERMAL_PALETTE
+---| '1' # THERMAL_GAIN
+---| '2' # THERMAL_RAW_DATA
+---@param value number
+---@return boolean
+function camera:change_setting(instance, setting, value) end
+
 -- desc
 mount = {}
 
@@ -2073,6 +2087,11 @@ function esc_telem:update_rpm(esc_index, rpm, error_rate) end
 ---@param scale_factor number -- factor
 function esc_telem:set_rpm_scale(esc_index, scale_factor) end
 
+-- get the timestamp of last telemetry data for an ESC
+---@param esc_index integer
+---@return uint32_t_ud
+function esc_telem:get_last_telem_data_ms(esc_index) end
+
 -- desc
 optical_flow = {}
 
@@ -2114,6 +2133,11 @@ function baro:get_altitude() end
 ---@return boolean
 function baro:healthy(instance) end
 
+-- get altitude difference from a base pressure and current pressure
+---@param base_pressure number -- first reference pressure in Pa
+---@param pressure number -- 2nd pressure in Pa
+---@return number -- altitude difference in meters
+function baro:get_altitude_difference(base_pressure,pressure) end
 
 -- Serial ports
 serial = {}
@@ -2491,6 +2515,12 @@ function vehicle:is_taking_off() end
 -- desc
 ---@return boolean
 function vehicle:is_landing() end
+
+-- Set the previous target location for crosstrack and crosstrack if available in the current mode
+-- It's up to the Lua code to ensure the new_start_location makes sense
+---@param new_start_location Location_ud
+---@return boolean -- true on success
+function vehicle:set_crosstrack_start(new_start_location) end
 
 -- desc
 onvif = {}
@@ -3200,6 +3230,10 @@ function arming:get_aux_auth_id() end
 ---@return boolean -- true if armed successfully
 function arming:arm() end
 
+-- force arm the vehicle
+---@return boolean -- true if armed
+function arming:arm_force() end
+
 -- Returns a true if vehicle is currently armed.
 ---@return boolean -- true if armed
 function arming:is_armed() end
@@ -3251,6 +3285,9 @@ function ahrs:get_vel_innovations_and_variances_for_source(source) end
 
 -- desc
 ---@param source_set_idx integer
+---| '0' # PRIMARY
+---| '1' # SECONDARY
+---| '2' # TERTIARY
 function ahrs:set_posvelyaw_source_set(source_set_idx) end
 
 -- desc
@@ -3482,7 +3519,7 @@ function mavlink:receive_chan() end
 ---@return boolean -- success
 function mavlink:send_chan(chan, msgid, message) end
 
--- Block a given MAV_CMD from being procceced by ArduPilot
+-- Block a given MAV_CMD from being processed by ArduPilot
 ---@param comand_id integer
 ---@return boolean
 function mavlink:block_command(comand_id) end

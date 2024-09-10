@@ -1,7 +1,7 @@
 #include "Copter.h"
 #include <utility>
 
-#if MODE_FLOWHOLD_ENABLED == ENABLED
+#if MODE_FLOWHOLD_ENABLED
 
 /*
   implement FLOWHOLD mode, for position hold using optical flow
@@ -240,7 +240,7 @@ void ModeFlowHold::run()
 
     // check for filter change
     if (!is_equal(flow_filter.get_cutoff_freq(), flow_filter_hz.get())) {
-        flow_filter.set_cutoff_frequency(flow_filter_hz.get());
+        flow_filter.set_cutoff_frequency(copter.scheduler.get_loop_rate_hz(), flow_filter_hz.get());
     }
 
     // get pilot desired climb rate

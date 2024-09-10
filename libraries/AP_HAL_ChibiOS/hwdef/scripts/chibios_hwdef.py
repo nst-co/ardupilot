@@ -38,6 +38,7 @@ class ChibiOSHWDef(object):
         self.signed_fw = signed_fw
         self.default_params_filepath = default_params_filepath
         self.quiet = quiet
+        self.have_defaults_file = False
 
         # if true then parameters will be appended in special apj-tool
         # section at end of binary:
@@ -865,8 +866,8 @@ class ChibiOSHWDef(object):
         storage_flash_page = self.get_config('STORAGE_FLASH_PAGE', default=None, type=int, required=False)
         if storage_flash_page is not None:
             return storage_flash_page
-        if self.is_bootloader_fw() and args.hwdef[0].find("-bl") != -1:
-            hwdefdat = args.hwdef[0].replace("-bl", "")
+        if self.is_bootloader_fw() and self.hwdef[0].find("-bl") != -1:
+            hwdefdat = self.hwdef[0].replace("-bl", "")
             if os.path.exists(hwdefdat):
                 ret = None
                 lines = self.load_file_with_include(hwdefdat)
@@ -926,7 +927,7 @@ class ChibiOSHWDef(object):
 
     def write_mcu_config(self, f):
         '''write MCU config defines'''
-        f.write('#define CHIBIOS_BOARD_NAME "%s"\n' % os.path.basename(os.path.dirname(args.hwdef[0])))
+        f.write('#define CHIBIOS_BOARD_NAME "%s"\n' % os.path.basename(os.path.dirname(self.hwdef[0])))
         f.write('// MCU type (ChibiOS define)\n')
         f.write('#define %s_MCUCONF\n' % self.get_config('MCU'))
         mcu_subtype = self.get_config('MCU', 1)
@@ -1271,7 +1272,7 @@ class ChibiOSHWDef(object):
             if flash_size == 0:
                 flash_size = self.get_config('FLASH_SIZE_KB', type=int)
             flash_length = min(flash_size, self.get_config('FLASH_BOOTLOADER_LOAD_KB', type=int))
-            if not self.env_vars['EXT_FLASH_SIZE_MB'] and not args.signed_fw and flash_length < 128:
+            if not self.env_vars['EXT_FLASH_SIZE_MB'] and not self.signed_fw and flash_length < 128:
                 f.write('''
 #ifndef CH_CFG_USE_MEMCORE
 #define CH_CFG_USE_MEMCORE FALSE
@@ -1471,7 +1472,7 @@ INCLUDE common.ld
         if self.is_bootloader_fw():
             default_product += "-BL"
         product_string = self.get_config("USB_STRING_PRODUCT", default="\"%s\"" % default_product)
-        if self.is_bootloader_fw() and args.signed_fw:
+        if self.is_bootloader_fw() and self.signed_fw:
             product_string = product_string.replace("-BL", "-Secure-BL-v10")
         f.write('#define HAL_USB_STRING_PRODUCT %s\n' % product_string)
 
@@ -2463,7 +2464,7 @@ INCLUDE common.ld
         # always embed a bootloader if it is available
         this_dir = os.path.realpath(__file__)
         rootdir = os.path.relpath(os.path.join(this_dir, "../../../../.."))
-        hwdef_dirname = os.path.basename(os.path.dirname(args.hwdef[0]))
+        hwdef_dirname = os.path.basename(os.path.dirname(self.hwdef[0]))
         # allow re-using of bootloader from different build:
         use_bootloader_from_board = self.get_config('USE_BOOTLOADER_FROM_BOARD', default=None, required=False)
         if use_bootloader_from_board is not None:
@@ -2492,7 +2493,7 @@ INCLUDE common.ld
             self.error('''Bootloader (%s) does not exist and AP_BOOTLOADER_FLASHING_ENABLED
 Please run: Tools/scripts/build_bootloaders.py %s
 ''' %
-                       (bp, os.path.basename(os.path.dirname(args.hwdef[0]))))
+                       (bp, os.path.basename(os.path.dirname(self.hwdef[0]))))
 
         bp = os.path.realpath(bp)
 
@@ -2573,7 +2574,7 @@ Please run: Tools/scripts/build_bootloaders.py %s
         f = open(hwdat, 'w')
         f.write('\n'.join(self.all_lines))
         f.close()
-        if not self.is_periph_fw():
+        if not self.is_periph_fw() and not os.getenv("NO_ROMFS_HWDEF", False):
             self.romfs["hwdef.dat"] = hwdat
 
     def write_defaulting_define(self, f, name, value):
@@ -2609,7 +2610,7 @@ Please run: Tools/scripts/build_bootloaders.py %s
 
 ''')
 
-        if args.signed_fw:
+        if self.signed_fw:
             f.write('''
 #define AP_SIGNED_FIRMWARE 1
 ''')
@@ -2643,6 +2644,13 @@ Please run: Tools/scripts/build_bootloaders.py %s
         self.write_AIRSPEED_config(f)
         self.write_board_validate_macro(f)
         self.write_check_firmware(f)
+
+        if self.have_defaults_file:
+            f.write('''
+#ifndef AP_FILESYSTEM_ROMFS_ENABLED
+#define AP_FILESYSTEM_ROMFS_ENABLED 1
+#endif
+''')
 
         self.write_peripheral_enable(f)
 
@@ -2880,8 +2888,8 @@ Please run: Tools/scripts/build_bootloaders.py %s
 
     def write_processed_defaults_file(self, filepath):
         # see if board has a defaults.parm file or a --default-parameters file was specified
-        defaults_filename = os.path.join(os.path.dirname(args.hwdef[0]), 'defaults.parm')
-        defaults_path = os.path.join(os.path.dirname(args.hwdef[0]), args.params)
+        defaults_filename = os.path.join(os.path.dirname(self.hwdef[0]), 'defaults.parm')
+        defaults_path = os.path.join(os.path.dirname(self.hwdef[0]), args.params)
 
         defaults_abspath = None
         if os.path.exists(defaults_path):
@@ -2926,7 +2934,7 @@ Please run: Tools/scripts/build_bootloaders.py %s
             if relative_to_base:
                 romfs_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', dirname)
             else:
-                romfs_dir = os.path.join(os.path.dirname(args.hwdef[0]), dirname)
+                romfs_dir = os.path.join(os.path.dirname(self.hwdef[0]), dirname)
             if not self.is_bootloader_fw() and os.path.exists(romfs_dir):
                 for root, d, files in os.walk(romfs_dir):
                     for f in files:
@@ -3277,6 +3285,7 @@ Please run: Tools/scripts/build_bootloaders.py %s
             return
 
         self.romfs_add('defaults.parm', filepath)
+        self.have_defaults_file = True
 
     def process_hwdefs(self):
         for fname in self.hwdef:

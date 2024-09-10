@@ -359,6 +359,8 @@ public:
         k_param_autotune_options,
         k_param_takeoff_throttle_min,
         k_param_takeoff_options,
+
+        k_param_pullup = 270,
     };
 
     AP_Int16 format_version;
@@ -555,7 +557,7 @@ public:
     } fwd_batt_cmp;
 
 
-#if OFFBOARD_GUIDED == ENABLED
+#if AP_PLANE_OFFBOARD_GUIDED_SLEW_ENABLED
     // guided yaw heading PID
     AC_PID guidedHeading{5000.0,  0.0,   0.0, 0 ,  10.0,   5.0,  5.0 ,  5.0  , 0.0};
 #endif

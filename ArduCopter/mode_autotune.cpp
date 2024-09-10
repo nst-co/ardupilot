@@ -4,7 +4,7 @@
   autotune mode is a wrapper around the AC_AutoTune library
  */
 
-#if AUTOTUNE_ENABLED == ENABLED
+#if AUTOTUNE_ENABLED
 
 bool AutoTune::init()
 {
@@ -118,19 +118,9 @@ void ModeAutoTune::run()
     autotune.run();
 }
 
-void ModeAutoTune::save_tuning_gains()
-{
-    autotune.save_tuning_gains();
-}
-
 void ModeAutoTune::exit()
 {
     autotune.stop();
 }
 
-void ModeAutoTune::reset()
-{
-    autotune.reset();
-}
-
-#endif  // AUTOTUNE_ENABLED == ENABLED
+#endif  // AUTOTUNE_ENABLED

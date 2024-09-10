@@ -49,7 +49,7 @@ public:
 #if AP_EXTERNAL_AHRS_MICROSTRAIN5_ENABLED
         MicroStrain5 = 2,
 #endif
-#if AP_EXTERNAL_AHRS_INERTIAL_LABS_ENABLED
+#if AP_EXTERNAL_AHRS_INERTIALLABS_ENABLED
         InertialLabs = 5,
 #endif
         // 3 reserved for AdNav
@@ -109,6 +109,7 @@ public:
     bool initialised(void) const;
     bool get_quaternion(Quaternion &quat);
     bool get_origin(Location &loc);
+    bool set_origin(const Location &loc);
     bool get_location(Location &loc);
     Vector2f get_groundspeed_vector();
     bool get_velocity_NED(Vector3f &vel);

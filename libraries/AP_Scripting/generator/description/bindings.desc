@@ -53,7 +53,7 @@ singleton AP_AHRS method earth_to_body Vector3f Vector3f
 singleton AP_AHRS method body_to_earth Vector3f Vector3f
 singleton AP_AHRS method get_EAS2TAS float
 singleton AP_AHRS method get_variances boolean float'Null float'Null float'Null Vector3f'Null float'Null
-singleton AP_AHRS method set_posvelyaw_source_set void uint8_t 0 2
+singleton AP_AHRS method set_posvelyaw_source_set void AP_NavEKF_Source::SourceSetSelection'enum AP_NavEKF_Source::SourceSetSelection::PRIMARY AP_NavEKF_Source::SourceSetSelection::TERTIARY
 singleton AP_AHRS method get_vel_innovations_and_variances_for_source boolean uint8_t 3 6 Vector3f'Null Vector3f'Null
 singleton AP_AHRS method set_home boolean Location
 singleton AP_AHRS method get_origin boolean Location'Null
@@ -70,6 +70,7 @@ singleton AP_Arming method disarm boolean AP_Arming::Method::SCRIPTING'literal
 singleton AP_Arming method is_armed boolean
 singleton AP_Arming method pre_arm_checks boolean false'literal
 singleton AP_Arming method arm boolean AP_Arming::Method::SCRIPTING'literal
+singleton AP_Arming method arm_force boolean AP_Arming::Method::SCRIPTING'literal
 singleton AP_Arming method get_aux_auth_id boolean uint8_t'Null
 singleton AP_Arming method set_aux_auth_passed void uint8_t'skip_check
 singleton AP_Arming method set_aux_auth_failed void uint8_t'skip_check string
@@ -348,6 +349,7 @@ singleton AP_Vehicle method has_ekf_failsafed boolean
 singleton AP_Vehicle method reboot void boolean
 singleton AP_Vehicle method is_landing boolean
 singleton AP_Vehicle method is_taking_off boolean
+singleton AP_Vehicle method set_crosstrack_start boolean Location
 
 include AP_SerialLED/AP_SerialLED.h
 singleton AP_SerialLED rename serialLED
@@ -418,6 +420,7 @@ singleton AP_Baro method get_temperature float
 singleton AP_Baro method get_external_temperature float
 singleton AP_Baro method get_altitude float
 singleton AP_Baro method healthy boolean uint8_t'skip_check
+singleton AP_Baro method get_altitude_difference float float'skip_check float'skip_check
 
 include AP_OpticalFlow/AP_OpticalFlow.h
 singleton AP_OpticalFlow depends AP_OPTICALFLOW_ENABLED
@@ -438,16 +441,17 @@ userdata AP_ESC_Telem_Backend::TelemetryData field motor_temp_cdeg int16_t'skip_
 
 singleton AP_ESC_Telem depends HAL_WITH_ESC_TELEM == 1
 singleton AP_ESC_Telem rename esc_telem
-singleton AP_ESC_Telem method get_rpm boolean uint8_t 0 NUM_SERVO_CHANNELS float'Null
-singleton AP_ESC_Telem method get_temperature boolean uint8_t 0 NUM_SERVO_CHANNELS int16_t'Null
-singleton AP_ESC_Telem method get_motor_temperature boolean uint8_t 0 NUM_SERVO_CHANNELS int16_t'Null
-singleton AP_ESC_Telem method get_current boolean uint8_t 0 NUM_SERVO_CHANNELS float'Null
-singleton AP_ESC_Telem method get_voltage boolean uint8_t 0 NUM_SERVO_CHANNELS float'Null
-singleton AP_ESC_Telem method get_consumption_mah boolean uint8_t 0 NUM_SERVO_CHANNELS float'Null
-singleton AP_ESC_Telem method get_usage_seconds boolean uint8_t 0 NUM_SERVO_CHANNELS uint32_t'Null
-singleton AP_ESC_Telem method update_rpm void uint8_t 0 NUM_SERVO_CHANNELS uint16_t'skip_check float'skip_check
-singleton AP_ESC_Telem method update_telem_data void uint8_t 0 NUM_SERVO_CHANNELS AP_ESC_Telem_Backend::TelemetryData uint16_t'skip_check
-singleton AP_ESC_Telem method set_rpm_scale void uint8_t 0 NUM_SERVO_CHANNELS float'skip_check
+singleton AP_ESC_Telem method get_rpm boolean uint8_t'skip_check float'Null
+singleton AP_ESC_Telem method get_temperature boolean uint8_t'skip_check int16_t'Null
+singleton AP_ESC_Telem method get_motor_temperature boolean uint8_t'skip_check int16_t'Null
+singleton AP_ESC_Telem method get_current boolean uint8_t'skip_check float'Null
+singleton AP_ESC_Telem method get_voltage boolean uint8_t'skip_check float'Null
+singleton AP_ESC_Telem method get_consumption_mah boolean uint8_t'skip_check float'Null
+singleton AP_ESC_Telem method get_usage_seconds boolean uint8_t'skip_check uint32_t'Null
+singleton AP_ESC_Telem method update_rpm void uint8_t 0 ESC_TELEM_MAX_ESCS uint16_t'skip_check float'skip_check
+singleton AP_ESC_Telem method update_telem_data void uint8_t 0 ESC_TELEM_MAX_ESCS AP_ESC_Telem_Backend::TelemetryData uint16_t'skip_check
+singleton AP_ESC_Telem method set_rpm_scale void uint8_t 0 ESC_TELEM_MAX_ESCS float'skip_check
+singleton AP_ESC_Telem method get_last_telem_data_ms uint32_t uint8_t 0 ESC_TELEM_MAX_ESCS
 
 include AP_Param/AP_Param.h
 singleton AP_Param rename param
@@ -785,6 +789,7 @@ userdata AP_Camera::camera_state_t field tracking_type uint8_t'skip_check read
 userdata AP_Camera::camera_state_t field tracking_p1 Vector2f read
 userdata AP_Camera::camera_state_t field tracking_p2 Vector2f read
 singleton AP_Camera method get_state boolean uint8_t'skip_check AP_Camera::camera_state_t'Null
+singleton AP_Camera method change_setting boolean uint8_t'skip_check CameraSetting'enum CameraSetting::THERMAL_PALETTE CameraSetting::THERMAL_RAW_DATA float'skip_check
 
 include AP_Winch/AP_Winch.h
 singleton AP_Winch depends AP_WINCH_ENABLED && APM_BUILD_COPTER_OR_HELI
@@ -849,6 +854,7 @@ singleton AP_EFI depends (AP_EFI_SCRIPTING_ENABLED == 1)
 singleton AP_EFI rename efi
 singleton AP_EFI method get_backend AP_EFI_Backend uint8_t'skip_check
 singleton AP_EFI method get_state void EFI_State'Ref
+singleton AP_EFI method get_last_update_ms uint32_t 
 
 -- ----END EFI Library----
 

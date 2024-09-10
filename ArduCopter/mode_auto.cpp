@@ -1,6 +1,6 @@
 #include "Copter.h"
 
-#if MODE_AUTO_ENABLED == ENABLED
+#if MODE_AUTO_ENABLED
 
 /*
  * Init and run calls for auto flight mode
@@ -139,7 +139,7 @@ void ModeAuto::run()
 
     case SubMode::NAVGUIDED:
     case SubMode::NAV_SCRIPT_TIME:
-#if AC_NAV_GUIDED == ENABLED || AP_SCRIPTING_ENABLED
+#if AC_NAV_GUIDED || AP_SCRIPTING_ENABLED
         nav_guided_run();
 #endif
         break;
@@ -215,7 +215,7 @@ bool ModeAuto::allows_arming(AP_Arming::Method method) const
     return option_is_enabled(Option::AllowArming);
 }
 
-#if WEATHERVANE_ENABLED == ENABLED
+#if WEATHERVANE_ENABLED
 bool ModeAuto::allows_weathervaning() const
 {
     return option_is_enabled(Option::AllowWeatherVaning);
@@ -569,7 +569,7 @@ void ModeAuto::circle_start()
     set_submode(SubMode::CIRCLE);
 }
 
-#if AC_NAV_GUIDED == ENABLED
+#if AC_NAV_GUIDED
 // auto_nav_guided_start - hand over control to external navigation controller in AUTO mode
 void ModeAuto::nav_guided_start()
 {
@@ -721,7 +721,7 @@ bool ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
         do_spline_wp(cmd);
         break;
 
-#if AC_NAV_GUIDED == ENABLED
+#if AC_NAV_GUIDED
     case MAV_CMD_NAV_GUIDED_ENABLE:             // 92  accept navigation commands from external nav computer
         do_nav_guided_enable(cmd);
         break;
@@ -783,7 +783,7 @@ bool ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
         do_mount_control(cmd);
         break;
 
-#if AC_NAV_GUIDED == ENABLED
+#if AC_NAV_GUIDED
     case MAV_CMD_DO_GUIDED_LIMITS:                      // 220  accept guided mode limits
         do_guided_limits(cmd);
         break;
@@ -959,7 +959,7 @@ bool ModeAuto::verify_command(const AP_Mission::Mission_Command& cmd)
         cmd_complete = verify_spline_wp(cmd);
         break;
 
-#if AC_NAV_GUIDED == ENABLED
+#if AC_NAV_GUIDED
     case MAV_CMD_NAV_GUIDED_ENABLE:
         cmd_complete = verify_nav_guided_enable(cmd);
         break;
@@ -1101,7 +1101,7 @@ void ModeAuto::circle_run()
     attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.get_heading());
 }
 
-#if AC_NAV_GUIDED == ENABLED || AP_SCRIPTING_ENABLED
+#if AC_NAV_GUIDED || AP_SCRIPTING_ENABLED
 // auto_nav_guided_run - allows control by external navigation controller
 //      called by auto_run at 100hz or more
 void ModeAuto::nav_guided_run()
@@ -1282,7 +1282,7 @@ void PayloadPlace::run()
         }
     }
 
-#if AP_GRIPPER_ENABLED == ENABLED
+#if AP_GRIPPER_ENABLED
     // if pilot releases load manually:
     if (AP::gripper().valid() && AP::gripper().released()) {
         switch (state) {
@@ -1377,7 +1377,7 @@ void PayloadPlace::run()
     case State::Release:
         // Reinitialise vertical position controller to remove discontinuity due to touch down of payload
         pos_control->init_z_controller_no_descent();
-#if AP_GRIPPER_ENABLED == ENABLED
+#if AP_GRIPPER_ENABLED
         if (AP::gripper().valid()) {
             gcs().send_text(MAV_SEVERITY_INFO, "%s Releasing the gripper", prefix_str);
             AP::gripper().release();
@@ -1439,8 +1439,7 @@ void PayloadPlace::run()
         copter.flightmode->land_run_horizontal_control();
         // update altitude target and call position controller
         pos_control->land_at_climb_rate_cm(-descent_speed_cms, true);
-        pos_control->update_z_controller();
-        return;
+        break;
     case State::Release:
     case State::Releasing:
     case State::Delay:
@@ -1448,8 +1447,7 @@ void PayloadPlace::run()
         copter.flightmode->land_run_horizontal_control();
         // update altitude target and call position controller
         pos_control->land_at_climb_rate_cm(0.0, false);
-        pos_control->update_z_controller();
-        return;
+        break;
     case State::Ascent:
     case State::Done:
         float vel = 0.0;
@@ -1457,6 +1455,7 @@ void PayloadPlace::run()
         pos_control->input_pos_vel_accel_z(descent_start_altitude_cm, vel, 0.0);
         break;
     }
+    pos_control->update_z_controller();
 }
 #endif
 
@@ -1812,7 +1811,7 @@ void ModeAuto::get_spline_from_cmd(const AP_Mission::Mission_Command& cmd, const
     }
 }
 
-#if AC_NAV_GUIDED == ENABLED
+#if AC_NAV_GUIDED
 // do_nav_guided_enable - initiate accepting commands from external nav computer
 void ModeAuto::do_nav_guided_enable(const AP_Mission::Mission_Command& cmd)
 {
@@ -1918,15 +1917,20 @@ void ModeAuto::do_yaw(const AP_Mission::Mission_Command& cmd)
 void ModeAuto::do_change_speed(const AP_Mission::Mission_Command& cmd)
 {
     if (cmd.content.speed.target_ms > 0) {
-        if (cmd.content.speed.speed_type == 2)  {
+        switch (cmd.content.speed.speed_type) {
+        case SPEED_TYPE_CLIMB_SPEED:
             copter.wp_nav->set_speed_up(cmd.content.speed.target_ms * 100.0f);
             desired_speed_override.up = cmd.content.speed.target_ms;
-        } else if (cmd.content.speed.speed_type == 3)  {
+            break;
+        case SPEED_TYPE_DESCENT_SPEED:
             copter.wp_nav->set_speed_down(cmd.content.speed.target_ms * 100.0f);
             desired_speed_override.down = cmd.content.speed.target_ms;
-        } else {
+            break;
+        case SPEED_TYPE_AIRSPEED:
+        case SPEED_TYPE_GROUNDSPEED:
             copter.wp_nav->set_speed_xy(cmd.content.speed.target_ms * 100.0f);
             desired_speed_override.xy = cmd.content.speed.target_ms;
+            break;
         }
     }
 }
@@ -2261,7 +2265,7 @@ bool ModeAuto::verify_spline_wp(const AP_Mission::Mission_Command& cmd)
     return false;
 }
 
-#if AC_NAV_GUIDED == ENABLED
+#if AC_NAV_GUIDED
 // verify_nav_guided - check if we have breached any limits
 bool ModeAuto::verify_nav_guided_enable(const AP_Mission::Mission_Command& cmd)
 {
@@ -2326,7 +2330,7 @@ bool ModeAuto::resume()
 
 bool ModeAuto::paused() const
 {
-    return wp_nav->paused();
+    return (wp_nav != nullptr) && wp_nav->paused();
 }
 
 #endif

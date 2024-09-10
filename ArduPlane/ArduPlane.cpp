@@ -31,7 +31,7 @@
 
   All entries in this table must be ordered by priority.
 
-  This table is interleaved with the table presnet in each of the
+  This table is interleaved with the table present in each of the
   vehicles to determine the order in which tasks are run.  Convenience
   methods SCHED_TASK and SCHED_TASK_CLASS are provided to build
   entries in this structure:
@@ -216,6 +216,17 @@ void Plane::update_speed_height(void)
         should_run_tecs = false;
     }
 #endif
+
+    if (auto_state.idle_mode) {
+        should_run_tecs = false;
+    }
+
+#if AP_PLANE_GLIDER_PULLUP_ENABLED
+    if (mode_auto.in_pullup()) {
+        should_run_tecs = false;
+    }
+#endif
+
     if (should_run_tecs) {
 	    // Call TECS 50Hz update. Note that we call this regardless of
 	    // throttle suppressed, as this needs to be running for
@@ -512,6 +523,12 @@ void Plane::update_fly_forward(void)
     }
 #endif
 
+    if (auto_state.idle_mode) {
+        // don't fuse airspeed when in balloon lift
+        ahrs.set_fly_forward(false);
+        return;
+    }
+
     if (flight_stage == AP_FixedWing::FlightStage::LAND) {
         ahrs.set_fly_forward(landing.is_flying_forward());
         return;
@@ -559,7 +576,7 @@ void Plane::update_alt()
 
     // low pass the sink rate to take some of the noise out
     auto_state.sink_rate = 0.8f * auto_state.sink_rate + 0.2f*sink_rate;
-#if PARACHUTE == ENABLED
+#if HAL_PARACHUTE_ENABLED
     parachute.set_sink_rate(auto_state.sink_rate);
 #endif
 
@@ -575,6 +592,16 @@ void Plane::update_alt()
     bool should_run_tecs = control_mode->does_auto_throttle();
 #if HAL_QUADPLANE_ENABLED
     if (quadplane.should_disable_TECS()) {
+        should_run_tecs = false;
+    }
+#endif
+
+    if (auto_state.idle_mode) {
+        should_run_tecs = false;
+    }
+
+#if AP_PLANE_GLIDER_PULLUP_ENABLED
+    if (mode_auto.in_pullup()) {
         should_run_tecs = false;
     }
 #endif
@@ -908,6 +935,16 @@ bool Plane::set_land_descent_rate(float descent_rate)
 #endif
     return false;
 }
+
+// Allow for scripting to have control over the crosstracking when exiting and resuming missions or guided flight
+// It's up to the Lua script to ensure the provided location makes sense
+bool Plane::set_crosstrack_start(const Location &new_start_location)
+{        
+    prev_WP_loc = new_start_location;
+    auto_state.crosstrack = true;
+    return true;
+}
+
 #endif // AP_SCRIPTING_ENABLED
 
 // returns true if vehicle is landing.
