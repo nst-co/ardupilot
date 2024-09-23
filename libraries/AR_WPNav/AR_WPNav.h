@@ -183,6 +183,7 @@ protected:
     float _turn_radius;             // vehicle turn radius in meters
     float _radius_tmp;
     float _overshoot_tmp;
+    bool _is_omni;                  // true if vehicle frame_type is omni
 
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update

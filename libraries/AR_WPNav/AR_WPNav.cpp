@@ -19,6 +19,7 @@
 #include "AR_WPNav.h"
 #include <GCS_MAVLink/GCS.h>
 #include <AP_InternalError/AP_InternalError.h>
+#include <AR_Motors/AP_MotorsUGV.h>
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <stdio.h>
@@ -162,6 +163,7 @@ void AR_WPNav::init(float speed_max)
     // init some flags
     _reached_destination = false;
     _fast_waypoint = false;
+    _is_omni = AP::motors_ugv()->is_omni();
 
     // ensure pivot turns are deactivated
     _pivot.deactivate();
@@ -258,7 +260,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
 {
     float next_leg_bearing_cd = AR_WPNAV_HEADING_UNKNOWN;
     Location current_loc;
-    if (AP::ahrs().get_location(current_loc)) {
+    if (!_is_omni && AP::ahrs().get_location(current_loc)) {
         next_leg_bearing_cd = current_loc.get_bearing_to(next_destination);
     }
 
@@ -616,6 +618,19 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
         _desired_heading_cd = _reversed ? wrap_360_cd(oa_wp_bearing_cd() + 18000) : oa_wp_bearing_cd();
         _desired_turn_rate_rads = is_zero(_desired_speed_limited) ? _pivot.get_turn_rate_rads(_desired_heading_cd * 0.01, dt) : 0;
         _desired_lat_accel = 0.0f;
+    } else if (_is_omni) {
+        // omni vehicles
+        // accelerate desired speed towards max
+        float des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
+        // limit speed based on distance to waypoint and max acceleration/deceleration
+        if (is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
+            const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination  * _atc.get_decel_max() + sq(_desired_speed_final));
+            des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
+        }
+
+        _desired_speed_limited = des_speed_lim;
+        _desired_turn_rate_rads = 0.0;
+        _desired_lat_accel = 0.0;
     } else {
         /*
         _desired_speed_limited = _pos_control.get_desired_speed();

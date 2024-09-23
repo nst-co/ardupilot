@@ -177,6 +177,7 @@ protected:
     // calculates the amount of throttle that should be output based
     // on things like proximity to corners and current speed
     virtual void calc_throttle(float target_speed, bool avoidance_enabled);
+    void calc_throttle_waypoint(float target_speed);
 
     // performs a controlled stop. returns true once vehicle has stopped
     bool stop_vehicle();

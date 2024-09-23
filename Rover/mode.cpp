@@ -284,6 +284,51 @@ void Mode::handle_tack_request()
     }
 }
 
+void Mode::calc_throttle_waypoint(float target_speed)
+{
+    // get acceleration limited target speed
+    target_speed = attitude_control.get_desired_speed_accel_limited(target_speed, rover.G_Dt);
+
+    // call throttle controller and convert output to -100 to +100 range
+    float throttle_out = 0.0f;
+
+    if (g2.sailboat.sail_enabled()) {
+        // sailboats use special throttle and mainsail controller
+        g2.sailboat.get_throttle_and_set_mainsail(target_speed, throttle_out);
+    } else {
+        // call speed or stop controller
+        if (is_zero(target_speed) && !rover.is_balancebot()) {
+            bool stopped;
+            throttle_out = 100.0f * attitude_control.get_throttle_out_stop(g2.motors.limit.throttle_lower, g2.motors.limit.throttle_upper, g.speed_cruise, g.throttle_cruise * 0.01f, rover.G_Dt, stopped);
+        } else {
+            bool motor_lim_low = g2.motors.limit.throttle_lower || attitude_control.pitch_limited();
+            bool motor_lim_high = g2.motors.limit.throttle_upper || attitude_control.pitch_limited();
+            throttle_out = 100.0f * attitude_control.get_throttle_out_speed(target_speed, motor_lim_low, motor_lim_high, g.speed_cruise, g.throttle_cruise * 0.01f, rover.G_Dt);
+        }
+
+        // if vehicle is balance bot, calculate actual throttle required for balancing
+        if (rover.is_balancebot()) {
+            rover.balancebot_pitch_control(throttle_out);
+        }
+    }
+
+    if (g2.motors.is_omni()) {
+        Location current_loc, destination;
+        float nav_bearing = 0.0f;
+        if(AP::ahrs().get_location(current_loc)) {
+            Vector2f AB = current_loc.get_distance_NE(g2.wp_nav.get_destination());
+            AB.normalize();
+            nav_bearing = atan2f(AB.y, AB.x) - AP::ahrs().yaw_sensor;
+        }
+        g2.motors.set_throttle(throttle_out * cos(nav_bearing));
+        g2.motors.set_lateral(throttle_out * sin(nav_bearing));
+        return;
+    }
+
+    // send to motor
+    g2.motors.set_throttle(throttle_out);
+}
+
 void Mode::calc_throttle(float target_speed, bool avoidance_enabled)
 {
     // get acceleration limited target speed
@@ -327,6 +372,10 @@ void Mode::calc_throttle(float target_speed, bool avoidance_enabled)
 
     // send to motor
     g2.motors.set_throttle(throttle_out);
+
+    if (g2.motors.is_omni()) {
+        g2.motors.set_lateral(throttle_out);
+    }
 }
 
 // performs a controlled stop without turning
@@ -438,7 +487,8 @@ void Mode::navigate_to_waypoint()
 
     // pass desired speed to throttle controller
     // do not do simple avoidance because this is already handled in the position controller
-    calc_throttle(g2.wp_nav.get_speed(), false);
+    //calc_throttle(g2.wp_nav.get_speed(), false);
+    calc_throttle_waypoint(g2.wp_nav.get_speed());
 
     float desired_heading_cd = g2.wp_nav.oa_wp_bearing_cd();
     if (g2.sailboat.use_indirect_route(desired_heading_cd)) {
@@ -447,6 +497,8 @@ void Mode::navigate_to_waypoint()
         // use pivot turn rate for tacks
         const float turn_rate = g2.sailboat.tacking() ? g2.wp_nav.get_pivot_rate() : 0.0f;
         calc_steering_to_heading(desired_heading_cd, turn_rate);
+    } else if (g2.motors.is_omni()) {
+        calc_steering_to_heading(_desired_yaw_cd);
     } else {
         // retrieve turn rate from waypoint controller
         float desired_turn_rate_rads = g2.wp_nav.get_turn_rate_rads();
