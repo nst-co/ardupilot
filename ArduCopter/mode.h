@@ -15,7 +15,7 @@ class _AutoTakeoff {
 public:
     void run();
     void start(float complete_alt_cm, bool terrain_alt);
-    bool get_position(Vector3p& completion_pos);
+    bool get_completion_pos(Vector3p& pos_neu_cm);
 
     bool complete;          // true when takeoff is complete
 
@@ -163,7 +163,7 @@ public:
     // pilot input processing
     void get_pilot_desired_lean_angles(float &roll_out_cd, float &pitch_out_cd, float angle_max_cd, float angle_limit_cd) const;
     Vector2f get_pilot_desired_velocity(float vel_max) const;
-    float get_pilot_desired_yaw_rate(float yaw_in);
+    float get_pilot_desired_yaw_rate() const;
     float get_pilot_desired_throttle() const;
 
     // returns climb target_rate reduced to avoid obstacles and
