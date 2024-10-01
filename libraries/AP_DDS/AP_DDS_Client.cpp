@@ -5,6 +5,7 @@
 
 #include <AP_GPS/AP_GPS.h>
 #include <AP_HAL/AP_HAL.h>
+#include <RC_Channel/RC_Channel.h>
 #include <AP_RTC/AP_RTC.h>
 #include <AP_Math/AP_Math.h>
 #include <AP_InertialSensor/AP_InertialSensor.h>
@@ -83,6 +84,25 @@ const AP_Param::GroupInfo AP_DDS_Client::var_info[] {
     // @RebootRequired: True
     // @User: Standard
     AP_GROUPINFO("_DOMAIN_ID", 4, AP_DDS_Client, domain_id, 0),
+
+    // @Param: _TIMEOUT_MS
+    // @DisplayName: DDS ping timeout
+    // @Description: The time in milliseconds the DDS client will wait for a response from the XRCE agent before reattempting.
+    // @Units: ms
+    // @Range: 1 10000
+    // @RebootRequired: True
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("_TIMEOUT_MS", 5, AP_DDS_Client, ping_timeout_ms, 1000),
+
+    // @Param: _MAX_RETRY
+    // @DisplayName: DDS ping max attempts
+    // @Description: The maximum number of times the DDS client will attempt to ping the XRCE agent before exiting.
+    // @Range: 1 100
+    // @RebootRequired: True
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("_MAX_RETRY", 6, AP_DDS_Client, ping_max_retry, 10),
 
     AP_GROUPEND
 };
@@ -554,11 +574,23 @@ void AP_DDS_Client::on_topic(uxrSession* uxr_session, uxrObjectId object_id, uin
         }
 
         if (rx_joy_topic.axes_size >= 4) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "%s Received sensor_msgs/Joy: %f, %f, %f, %f",
-                          msg_prefix, rx_joy_topic.axes[0], rx_joy_topic.axes[1], rx_joy_topic.axes[2], rx_joy_topic.axes[3]);
-            // TODO implement joystick RC control to AP
-        } else {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "%s Received sensor_msgs/Joy. Axes size must be >= 4", msg_prefix);
+            const uint32_t t_now = AP_HAL::millis();
+
+            for (uint8_t i = 0; i < MIN(8U, rx_joy_topic.axes_size); i++) {
+                // Ignore channel override if NaN.
+                if (std::isnan(rx_joy_topic.axes[i])) {
+                    // Setting the RC override to 0U releases the channel back to the RC.
+                    RC_Channels::set_override(i, 0U, t_now);
+                } else {
+                    const uint16_t mapped_data = static_cast<uint16_t>(
+                                                     linear_interpolate(rc().channel(i)->get_radio_min(),
+                                                             rc().channel(i)->get_radio_max(),
+                                                             rx_joy_topic.axes[i],
+                                                             -1.0, 1.0));
+                    RC_Channels::set_override(i, mapped_data, t_now);
+                }
+            }
+
         }
         break;
     }
@@ -699,9 +731,7 @@ void AP_DDS_Client::main_loop(void)
         }
 
         // check ping
-        const uint64_t ping_timeout_ms{1000};
-        const uint8_t ping_max_attempts{10};
-        if (!uxr_ping_agent_attempts(comm, ping_timeout_ms, ping_max_attempts)) {
+        if (!uxr_ping_agent_attempts(comm, ping_timeout_ms, ping_max_retry)) {
             GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "%s No ping response, exiting", msg_prefix);
             return;
         }

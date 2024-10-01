@@ -124,10 +124,10 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
 };
 
 AR_WPNav::AR_WPNav(AR_AttitudeControl& atc, AR_PosControl &pos_control, AP_Navigation& nav_controller) :
+    _pivot(atc),
     _atc(atc),
     _pos_control(pos_control),
-    _nav_controller(nav_controller),
-    _pivot(atc)
+    _nav_controller(nav_controller)
 {
     AP_Param::setup_object_defaults(this, var_info);
 }
