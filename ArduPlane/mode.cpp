@@ -140,6 +140,14 @@ bool Mode::enter()
 
         // Make sure the flight stage is correct for the new mode
         plane.update_flight_stage();
+
+#if HAL_QUADPLANE_ENABLED
+        if (quadplane.enabled()) {
+            float aspeed;
+            bool have_airspeed = quadplane.ahrs.airspeed_estimate(aspeed);
+            quadplane.assisted_flight = quadplane.assist.should_assist(aspeed, have_airspeed);
+        }
+#endif
     }
 
     return enter_result;
@@ -247,6 +255,9 @@ void Mode::reset_controllers()
     // reset steering controls
     plane.steer_state.locked_course = false;
     plane.steer_state.locked_course_err = 0;
+
+    // reset TECS
+    plane.TECS_controller.reset();
 }
 
 bool Mode::is_taking_off() const

@@ -1942,6 +1942,10 @@ analog = {}
 ---@return number -- MCU temperature
 function analog:mcu_temperature() end
 
+-- return The current MCU voltage
+---@return number -- MCU voltage
+function analog:mcu_voltage() end
+
 -- desc
 ---@return AP_HAL__AnalogSource_ud|nil
 function analog:channel() end
@@ -3722,6 +3726,22 @@ AR_AttitudeControl = {}
 ---@return number -- steering slew rate
 ---@return number -- spees slew rate
 function AR_AttitudeControl:get_srate() end
+
+-- copter position controller
+poscontrol = {}
+
+-- add an offset to position controller's target position, velocity and acceleration
+---@param pos_offset_NED Vector3f_ud
+---@param vel_offset_NED Vector3f_ud
+---@param accel_offset_NED Vector3f_ud
+---@return boolean
+function poscontrol:set_posvelaccel_offset(pos_offset_NED, vel_offset_NED, accel_offset_NED) end
+
+-- get position controller's target position, velocity and acceleration offsets
+---@return Vector3f_ud|nil
+---@return Vector3f_ud|nil
+---@return Vector3f_ud|nil
+function poscontrol:get_posvelaccel_offset() end
 
 -- desc
 AR_PosControl = {}

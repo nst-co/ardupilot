@@ -647,6 +647,8 @@ singleton hal.analogin literal
 singleton hal.analogin method channel AP_HAL::AnalogSource ANALOG_INPUT_NONE'literal
 singleton hal.analogin method mcu_temperature float
 singleton hal.analogin method mcu_temperature depends HAL_WITH_MCU_MONITORING
+singleton hal.analogin method mcu_voltage float
+singleton hal.analogin method mcu_voltage depends HAL_WITH_MCU_MONITORING
 
 include AP_Motors/AP_MotorsMatrix_Scripting_Dynamic.h depends APM_BUILD_TYPE(APM_BUILD_ArduPlane)||APM_BUILD_COPTER_OR_HELI
 singleton AP_MotorsMatrix_Scripting_Dynamic depends APM_BUILD_TYPE(APM_BUILD_ArduPlane)||APM_BUILD_COPTER_OR_HELI
@@ -758,6 +760,12 @@ singleton AC_PrecLand method get_target_location boolean Location'Null
 include AC_AttitudeControl/AC_AttitudeControl.h depends APM_BUILD_TYPE(APM_BUILD_ArduPlane)||APM_BUILD_COPTER_OR_HELI
 singleton AC_AttitudeControl depends APM_BUILD_TYPE(APM_BUILD_ArduPlane)||APM_BUILD_COPTER_OR_HELI
 singleton AC_AttitudeControl method get_rpy_srate void float'Ref float'Ref float'Ref
+
+include AC_AttitudeControl/AC_PosControl.h depends APM_BUILD_COPTER_OR_HELI
+singleton AC_PosControl depends APM_BUILD_COPTER_OR_HELI
+singleton AC_PosControl rename poscontrol
+singleton AC_PosControl method set_posvelaccel_offset boolean Vector3f Vector3f Vector3f
+singleton AC_PosControl method get_posvelaccel_offset boolean Vector3f'Null Vector3f'Null Vector3f'Null
 
 include APM_Control/AR_AttitudeControl.h depends APM_BUILD_TYPE(APM_BUILD_Rover)
 singleton AR_AttitudeControl depends APM_BUILD_TYPE(APM_BUILD_Rover)
