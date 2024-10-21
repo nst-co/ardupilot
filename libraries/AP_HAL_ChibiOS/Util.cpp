@@ -397,8 +397,7 @@ bool Util::get_system_id(char buf[50])
     uint8_t serialid[12];
     char board_name[24];
 
-    //memcpy(serialid, (const void *)UDID_START, 12);
-    for (int i=0; i<12; i++) serialid[i] = *((uint8_t *)UDID_START + i);
+    memcpy(serialid, (const void *)UDID_START, 12);
     // avoid board names greater than 23 chars (sizeof includes null char, so allow 24 bytes total)
     static_assert(sizeof(CHIBIOS_SHORT_BOARD_NAME) <= 24, "CHIBIOS_SHORT_BOARD_NAME must be 23 characters or less");
     strncpy(board_name, CHIBIOS_SHORT_BOARD_NAME, 23);

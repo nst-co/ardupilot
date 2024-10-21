@@ -436,6 +436,12 @@ public:
     AP_Float fs_gcs_timeout;
 
     class ModeCircle mode_circle;
+
+    // manual Throttle Rate
+    AP_Float manual_throttle_rate;
+
+    // FS Radio timeout trigger time
+    AP_Float fs_radio_timeout;
 };
 
 extern const AP_Param::Info var_info[];

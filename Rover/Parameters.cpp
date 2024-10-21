@@ -698,6 +698,24 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @Path: mode_circle.cpp
     AP_SUBGROUPINFO(mode_circle, "CIRC", 57, ParametersG2, ModeCircle),
 
+    // @Param: MANUAL_THR_RATE
+    // @DisplayName: Manual Throttle Rate
+    // @Description: Ratio to maximum speed for manual operation
+    // @Units: %
+    // @Range: 0 100
+    // @Increment: 0.1
+    // @User: Advanced
+    AP_GROUPINFO("MANUAL_THR_RATE", 58, ParametersG2, manual_throttle_rate, 100),
+
+    // @Param: FS_RADIO_TIMEOUT
+    // @DisplayName: Radio failsafe timeout
+    // @Description: Timeout before triggering the Radio failsafe
+    // @Units: ms
+    // @Range: 10 1000
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("FS_RADIO_TIMEOUT", 59, ParametersG2, fs_radio_timeout, 500),
+
     AP_GROUPEND
 };
 

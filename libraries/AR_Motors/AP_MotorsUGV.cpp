@@ -307,6 +307,10 @@ float AP_MotorsUGV::get_slew_limited_throttle(float throttle, float dt) const
         return throttle;
     }
 
+    // only slew limit during acceleration
+    if(fabsf(throttle) <= fabsf(_throttle_prev)) {
+        return throttle;
+    }
     const float throttle_change_max = static_cast<float>(_slew_rate) * dt;
     return constrain_float(throttle, _throttle_prev - throttle_change_max, _throttle_prev + throttle_change_max);
 }

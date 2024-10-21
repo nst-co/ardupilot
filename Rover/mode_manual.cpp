@@ -12,6 +12,8 @@ void ModeManual::update()
     get_pilot_desired_steering_and_throttle(desired_steering, desired_throttle);
     get_pilot_desired_lateral(desired_lateral);
 
+    desired_throttle = desired_throttle * g2.manual_throttle_rate / 100.0;
+
     // apply manual steering expo
     desired_steering = 4500.0 * input_expo(desired_steering / 4500, g2.manual_steering_expo);
 
