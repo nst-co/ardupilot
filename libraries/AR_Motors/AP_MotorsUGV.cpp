@@ -368,10 +368,11 @@ void AP_MotorsUGV::output(bool armed, float ground_speed, float dt)
     output_sail();
 
     // send values to the PWM timers for output
+    auto &srv = AP::srv();
     SRV_Channels::calc_pwm();
-    SRV_Channels::cork();
+    srv.cork();
     SRV_Channels::output_ch_all();
-    SRV_Channels::push();
+    srv.push();
 }
 
 // test steering or throttle output as a percentage of the total (range -100 to +100)
@@ -436,10 +437,11 @@ bool AP_MotorsUGV::output_test_pct(motor_test_order motor_seq, float pct)
         case MOTOR_TEST_LAST:
             return false;
     }
+    auto &srv = AP::srv();
     SRV_Channels::calc_pwm();
-    SRV_Channels::cork();
+    srv.cork();
     SRV_Channels::output_ch_all();
-    SRV_Channels::push();
+    srv.push();
     return true;
 }
 
@@ -502,10 +504,11 @@ bool AP_MotorsUGV::output_test_pwm(motor_test_order motor_seq, float pwm)
         default:
             return false;
     }
+    auto &srv = AP::srv();
     SRV_Channels::calc_pwm();
-    SRV_Channels::cork();
+    srv.cork();
     SRV_Channels::output_ch_all();
-    SRV_Channels::push();
+    srv.push();
     return true;
 }
 
