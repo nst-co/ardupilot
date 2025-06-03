@@ -516,6 +516,14 @@ protected:
     virtual bool persist_streamrates() const { return false; }
     void handle_request_data_stream(const mavlink_message_t &msg);
 
+    AP_Int16 options;
+    enum class Option : uint16_t {
+        MAVLINK2_SIGNING_DISABLED = (1U << 0),
+    };
+    bool option_enabled(Option option) const {
+        return options & static_cast<uint16_t>(option);
+    }
+
     virtual void handle_command_ack(const mavlink_message_t &msg);
     void handle_set_mode(const mavlink_message_t &msg);
     void handle_command_int(const mavlink_message_t &msg);
@@ -1323,6 +1331,7 @@ protected:
 
     virtual GCS_MAVLINK *new_gcs_mavlink_backend(AP_HAL::UARTDriver &uart) = 0;
 
+    HAL_Semaphore control_sensors_sem; // protects the three bitmasks
     uint32_t control_sensors_present;
     uint32_t control_sensors_enabled;
     uint32_t control_sensors_health;
