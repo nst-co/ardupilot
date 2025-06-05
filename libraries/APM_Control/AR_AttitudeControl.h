@@ -123,6 +123,7 @@ public:
 
     // get acceleration limited desired speed
     float get_desired_speed_accel_limited(float desired_speed, float dt) const;
+    float get_desired_speed_accel_ideal(float desired_accel, float dt) const;
 
     // get minimum stopping distance (in meters) given a speed (in m/s)
     float get_stopping_distance(float speed) const;

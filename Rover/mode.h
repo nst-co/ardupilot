@@ -122,6 +122,9 @@ public:
     // set desired speed in m/s
     virtual bool set_desired_speed(float speed) { return false; }
 
+    // set desired acceleration in m/s/s
+    virtual bool set_desired_acceleration(float accel) { return false; }
+
     // execute the mission in reverse (i.e. backing up)
     void set_reversed(bool value);
 
@@ -274,6 +277,9 @@ public:
 
     // set desired speed in m/s
     bool set_desired_speed(float speed) override;
+
+    // set desired acceleration in m/s
+    bool set_desired_acceleration(float accel) override;
 
     // start RTL (within auto)
     void start_RTL();

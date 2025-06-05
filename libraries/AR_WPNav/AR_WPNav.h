@@ -25,6 +25,8 @@ public:
     // if set_speed_max is called in rapid succession changes in speed may be delayed by up to 0.5sec
     float get_speed_max() const { return _base_speed_max; }
     bool set_speed_max(float speed_max);
+    bool set_acceleration_target(float accel);
+    void reset_acceleration_target();
 
     // set speed nudge in m/s.  this will have no effect unless nudge_speed_max > speed_max
     // nudge_speed_max should always be positive regardless of whether the vehicle is travelling forward or reversing
@@ -201,6 +203,8 @@ protected:
     float _base_speed_max;          // speed max (in m/s) derived from parameters or passed into init
     float _nudge_speed_max;         // "nudge" speed max (in m/s) normally from the pilot.  has no effect if less than _base_speed_max.  always positive.
     //uint32_t _last_speed_update_ms; // system time that speed_max was last update.  used to ensure speed_max is not update too quickly
+    float _base_accel;              // speed acceleration (in m/s/s)
+    bool _is_constant_accel;
 
     // main outputs from navigation library
     float _desired_speed_limited;   // desired speed (above) but accel/decel limited and reduced to keep vehicle within _overshoot of line

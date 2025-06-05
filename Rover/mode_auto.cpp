@@ -40,6 +40,9 @@ void ModeAuto::_exit()
     if (mission.state() == AP_Mission::MISSION_RUNNING) {
         mission.stop();
     }
+
+    // reset acceleration settings
+    g2.wp_nav.reset_acceleration_target();
 }
 
 void ModeAuto::update()
@@ -367,6 +370,19 @@ bool ModeAuto::set_desired_speed(float speed)
         return rover.mode_guided.set_desired_speed(speed);
     case SubMode::Circle:
         return g2.mode_circle.set_desired_speed(speed);
+    }
+    return false;
+}
+
+// set desired acceleration in m/s/s
+bool ModeAuto::set_desired_acceleration(float accel)
+{
+    switch (_submode) {
+    case SubMode::WP:
+    case SubMode::Stop:
+        return g2.wp_nav.set_acceleration_target(accel);
+    default:
+        return false;
     }
     return false;
 }
@@ -832,6 +848,9 @@ bool ModeAuto::verify_nav_wp(const AP_Mission::Mission_Command& cmd)
     if (!previously_reached_wp) {
         previously_reached_wp = true;
 
+        // reset acceleration settings
+        g2.wp_nav.reset_acceleration_target();
+
         // check if we are loitering at this waypoint - the message sent to the GCS is different
         if (loiter_duration > 0) {
             // send message including loiter time
@@ -990,8 +1009,18 @@ bool ModeAuto::verify_within_distance()
 void ModeAuto::do_change_speed(const AP_Mission::Mission_Command& cmd)
 {
     // set speed for active mode
-    if (set_desired_speed(cmd.content.speed.target_ms)) {
-        gcs().send_text(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(cmd.content.speed.target_ms));
+    if(cmd.content.speed.speed_type <= 1)
+    {
+        if (set_desired_speed(cmd.content.speed.target_ms)) {
+            gcs().send_text(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(cmd.content.speed.target_ms));
+        }
+    } else if (cmd.content.speed.speed_type == 10) {
+        if (set_desired_speed(cmd.content.speed.target_ms)) {
+            gcs().send_text(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(cmd.content.speed.target_ms));
+        }
+        if (set_desired_acceleration(cmd.content.speed.throttle_pct)) {
+            gcs().send_text(MAV_SEVERITY_INFO, "accel: %.1f m/s/s", static_cast<double>(cmd.content.speed.throttle_pct));
+        }
     }
 }
 

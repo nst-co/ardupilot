@@ -247,6 +247,29 @@ bool AR_WPNav::set_speed_max(float speed_max)
     return true;
 }
 
+// set acceleration in m/s/s. returns true on success
+bool AR_WPNav::set_acceleration_target(float accel)
+{
+    // range check target speed
+    if (accel > _atc.get_accel_max()) {
+        return false;
+    }
+
+    float dt = 0.001; // ref void AP_Vehicle::loop()
+    // update initial speed before setting acceleration
+    update_desired_speed(dt);
+
+    _base_accel = accel;
+    _is_constant_accel = true;
+    return true;
+}
+
+// reset acceleration
+void AR_WPNav::reset_acceleration_target()
+{
+    _is_constant_accel = false;
+}
+
 // set speed nudge in m/s.  this will have no effect unless nudge_speed_max > speed_max
 // nudge_speed_max should always be positive regardless of whether the vehicle is travelling forward or reversing
 void AR_WPNav::set_nudge_speed_max(float nudge_speed_max)
@@ -365,12 +388,9 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
     }
 */
     // set final desired speed and whether vehicle should pivot
-    _desired_speed_final = 0.0f;
-//    if(!_destination.isLastDestination){
-//        _desired_speed_final = X;
-//    }
-//     到達速度の変更：下記は無効化してWP設定値を反映
-    if (!is_equal(next_leg_bearing_cd, AR_WPNAV_HEADING_UNKNOWN)) {
+    _desired_speed_final = _base_speed_max; // = 0.0f;
+    // 到達速度の変更：最終地点のみ有効化
+    if (_destination.isLastDestination && !is_equal(next_leg_bearing_cd, AR_WPNAV_HEADING_UNKNOWN)) {
         const float curr_leg_bearing_cd = _origin.get_bearing_to(_destination);
         const float turn_angle_cd = wrap_180_cd(next_leg_bearing_cd - curr_leg_bearing_cd);
         if (fabsf(turn_angle_cd) < 10.0f) {
@@ -625,11 +645,15 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
     } else if (_is_omni) {
         // omni vehicles
         // accelerate desired speed towards max
-        float des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
+        float des_speed_lim;
+        if(!_is_constant_accel) {
+            des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
+        } else {
+            des_speed_lim = _atc.get_desired_speed_accel_ideal(_base_accel, dt);
+        }
         // limit speed based on distance to waypoint and max acceleration/deceleration
-        //到達速度の変更：下記は無効化してWP設定値を反映
-        //if(_destination.isLastDestination){
-        if (is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
+        // 到達速度の変更：最終地点のみ有効化
+        if (_destination.isLastDestination && is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
             const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination  * _atc.get_decel_max() + sq(_desired_speed_final));
             des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
         }
@@ -671,7 +695,12 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
 void AR_WPNav::update_desired_speed(float dt)
 {
     // accelerate desired speed towards max
-    float des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
+    float des_speed_lim;
+    if(!_is_constant_accel) {
+        des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
+    } else {
+        des_speed_lim = _atc.get_desired_speed_accel_ideal(_base_accel, dt);
+    }
 
     // reduce speed to limit overshoot from line between origin and destination
     // calculate number of degrees vehicle must turn to face waypoint
@@ -700,9 +729,8 @@ void AR_WPNav::update_desired_speed(float dt)
     des_speed_lim = constrain_float(des_speed_lim, -overshoot_speed_max, overshoot_speed_max);
 
     // limit speed based on distance to waypoint and max acceleration/deceleration
-    //到達速度の変更：下記は無効化してWP設定値を反映
-    //if(_destination.isLastDestination){
-    if (is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
+    // 到達速度の変更：最終地点のみ有効化
+    if (_destination.isLastDestination && is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
         const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination  * _atc.get_decel_max() + sq(_desired_speed_final));
         des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
     }
