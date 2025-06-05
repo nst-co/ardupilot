@@ -118,6 +118,9 @@ public:
     // Return the relay index that would be used for param conversion to relay functions
     bool get_legacy_relay_index(int8_t &index1, int8_t &index2, int8_t &index3, int8_t &index4) const;
 
+    // set whether manual mode
+    void set_is_manual(bool is_manual) { _is_manual = is_manual; }
+
     // structure for holding motor limit flags
     struct AP_MotorsUGV_limit {
         uint8_t steer_left      : 1; // we have reached the steering controller's left most limit
@@ -212,6 +215,8 @@ private:
     AP_Float _reverse_delay; // delay in seconds when reversing motor
     AP_Float _tread;
     AP_Float _wheelbase;
+    AP_Int16 _slew_rate_down;
+    AP_Int8 _manual_throttle_max;
 
     // internal variables
     float   _steering;  // requested steering as a value from -4500 to +4500
@@ -227,6 +232,7 @@ private:
     float   _mast_rotation;  // requested mast rotation input as a value in the range +- 100
     uint32_t _motor_mask;   // mask of motors configured with pwm_type
     frame_type _frame_type; // frame type requested at initialisation
+    bool    _is_manual = false;
 
     // omni variables
     float   _throttle_factor[AP_MOTORS_NUM_MOTORS_MAX];

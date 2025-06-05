@@ -143,6 +143,24 @@ const AP_Param::GroupInfo AP_MotorsUGV::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("WHEELBASE", 17, AP_MotorsUGV, _wheelbase, 0.6f),
 
+    // @Param: SLEWRATEDOWN
+    // @DisplayName: Throttle down slew rate
+    // @Description: Throttle down slew rate as a percentage of total range per second. A value of 100 allows the motor to change over its full range in one second.  A value of zero disables the limit.  Note some NiMH powered rovers require a lower setting of 40 to reduce current demand to avoid brownouts.
+    // @Units: %/s
+    // @Range: 0 1000
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("SLEWRATEDOWN", 18, AP_MotorsUGV, _slew_rate_down, 100),
+
+    // @Param: MANUALTHRMAX
+    // @DisplayName: Throttle maximum in manual mode
+    // @Description: Throttle maximum percentage the autopilot will apply in manual mode. This can be used to prevent overheating an ESC or motor on an electric rover
+    // @Units: %
+    // @Range: 30 100
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("MANUALTHRMAX", 19, AP_MotorsUGV, _manual_throttle_max, 100),
+
     AP_GROUPEND
 };
 
@@ -264,6 +282,10 @@ void AP_MotorsUGV::set_throttle(float throttle)
 
     // check throttle is between -_throttle_max and  +_throttle_max
     _throttle = constrain_float(throttle, -_throttle_max, _throttle_max);
+
+    if(_is_manual) {
+        _throttle = constrain_float(throttle, -_manual_throttle_max, _manual_throttle_max);
+    }
 }
 
 // set lateral input as a value from -100 to +100
@@ -321,8 +343,9 @@ float AP_MotorsUGV::get_slew_limited_throttle(float throttle, float dt) const
     if(fabsf(throttle) <= fabsf(_throttle_prev)) {
         return throttle;
     }
-    const float throttle_change_max = static_cast<float>(_slew_rate) * dt;
-    return constrain_float(throttle, _throttle_prev - throttle_change_max, _throttle_prev + throttle_change_max);
+    const float throttle_change_up_max = static_cast<float>(_slew_rate) * dt;
+    const float throttle_change_down_max = static_cast<float>(_slew_rate_down) * dt;
+    return constrain_float(throttle, _throttle_prev - throttle_change_down_max, _throttle_prev + throttle_change_up_max);
 }
 
 /*
@@ -363,7 +386,9 @@ void AP_MotorsUGV::output(bool armed, float ground_speed, float dt)
     sanity_check_parameters();
 
     // slew limit throttle
-    slew_limit_throttle(dt);
+    if(_is_manual) {
+        slew_limit_throttle(dt);
+    }
 
     // output for regular steering/throttle style frames
     output_regular(armed, ground_speed, _steering, _throttle);
@@ -609,6 +634,7 @@ void AP_MotorsUGV::sanity_check_parameters()
 {
     _throttle_min.set(constrain_int16(_throttle_min, 0, 20));
     _throttle_max.set(constrain_int16(_throttle_max, 30, 100));
+    _manual_throttle_max.set(constrain_int16(_manual_throttle_max, 30, 100));
     _vector_angle_max.set(constrain_float(_vector_angle_max, 0.0f, 90.0f));
 }
 

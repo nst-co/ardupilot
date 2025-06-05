@@ -4,6 +4,7 @@ void ModeManual::_exit()
 {
     // clear lateral when exiting manual mode
     g2.motors.set_lateral(0);
+    g2.motors.set_is_manual(false);
 }
 
 void ModeManual::update()
@@ -21,6 +22,8 @@ void ModeManual::update()
     if (rover.is_balancebot()) {
         rover.balancebot_pitch_control(desired_throttle);
     }
+
+    g2.motors.set_is_manual(true);
 
     // walking robots support roll, pitch and walking_height
     float desired_roll, desired_pitch, desired_walking_height;
