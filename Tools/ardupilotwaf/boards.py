@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+# flake8: noqa
+
 from collections import OrderedDict
 import re
 import sys, os
@@ -80,6 +82,12 @@ class Board:
             env.DEFINES.update(
                 AP_SCRIPTING_ENABLED = 0,
             )
+
+        # embed any scripts from ROMFS/scripts
+        if os.path.exists('ROMFS/scripts'):
+            for f in os.listdir('ROMFS/scripts'):
+                if fnmatch.fnmatch(f, "*.lua"):
+                    env.ROMFS_FILES += [('scripts/'+f,'ROMFS/scripts/'+f)]
 
         # allow GCS disable for AP_DAL example
         if cfg.options.no_gcs:
@@ -851,12 +859,6 @@ class sitl(Board):
 
         # include locations.txt so SITL on windows can lookup by name
         env.ROMFS_FILES += [('locations.txt','Tools/autotest/locations.txt')]
-
-        # embed any scripts from ROMFS/scripts
-        if os.path.exists('ROMFS/scripts'):
-            for f in os.listdir('ROMFS/scripts'):
-                if fnmatch.fnmatch(f, "*.lua"):
-                    env.ROMFS_FILES += [('scripts/'+f,'ROMFS/scripts/'+f)]
 
         if cfg.options.sitl_rgbled:
             env.CXXFLAGS += ['-DWITH_SITL_RGBLED']
