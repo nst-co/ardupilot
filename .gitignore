@@ -46,12 +46,10 @@
 .autotools
 .built
 .context
-.cproject
 .pydevproject
 .depend
 .directory
 .metadata/
-.project
 .settings/
 .tags
 .tags_sorted_by_file
