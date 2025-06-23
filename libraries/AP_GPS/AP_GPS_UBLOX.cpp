@@ -1618,6 +1618,30 @@ AP_GPS_UBLOX::_parse_gps(void)
 #if GPS_MOVING_BASELINE
     case MSG_RELPOSNED:
         {
+            if(role == AP_GPS::GPS_ROLE_MB_BASE)
+            {
+                const uint32_t valid_mask = static_cast<uint32_t>(RELPOSNED::relPosHeadingValid) |
+                                            static_cast<uint32_t>(RELPOSNED::relPosValid) |
+                                            static_cast<uint32_t>(RELPOSNED::gnssFixOK) |
+                                            static_cast<uint32_t>(RELPOSNED::carrSolnFixed);
+                const uint32_t invalid_mask = static_cast<uint32_t>(RELPOSNED::refPosMiss) |
+                                              static_cast<uint32_t>(RELPOSNED::refObsMiss) |
+                                              static_cast<uint32_t>(RELPOSNED::carrSolnFloat);
+
+                if (((_buffer.relposned.flags & valid_mask) == valid_mask) &&
+                    ((_buffer.relposned.flags & invalid_mask) == 0)) {
+                    state.have_gps_yaw_accuracy = true;
+                    state.gps_yaw_accuracy = _buffer.relposned.accHeading * 1e-5;
+                    state.relPosHeading = _buffer.relposned.relPosHeading * 1e-5;
+                    state.relPosLength  = _buffer.relposned.relPosLength * 0.01;
+                    state.relPosD       = _buffer.relposned.relPosD * 0.01;
+                    state.accHeading    = _buffer.relposned.accHeading * 1e-5;
+                    state.relposheading_ts = AP_HAL::millis();
+                } else {
+                    state.have_gps_yaw_accuracy = false;
+                }
+                break;
+            }
             if (role != AP_GPS::GPS_ROLE_MB_ROVER) {
                 // ignore RELPOSNED if not configured as a rover
                 break;

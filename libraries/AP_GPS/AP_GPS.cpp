@@ -445,6 +445,15 @@ bool AP_GPS::vertical_accuracy(uint8_t instance, float &vacc) const
     return false;
 }
 
+bool AP_GPS::yaw_accuracy(uint8_t instance, float &yacc) const
+{
+    if (state[instance].have_gps_yaw_accuracy) {
+        yacc = state[instance].gps_yaw_accuracy;
+        return true;
+    }
+    return false;
+}
+
 AP_GPS::CovarianceType AP_GPS::position_covariance(const uint8_t instance, Matrix3f& cov) const
 {
     AP_GPS::CovarianceType cov_type = AP_GPS::CovarianceType::UNKNOWN;
@@ -1376,6 +1385,7 @@ void AP_GPS::send_mavlink_gps_raw(mavlink_channel_t chan)
     float hacc = 0.0f;
     float vacc = 0.0f;
     float sacc = 0.0f;
+    float yacc_deg = 0.0f;
     float undulation = 0.0;
     int32_t height_elipsoid_mm = 0;
     if (get_undulation(0, undulation)) {
@@ -1384,6 +1394,7 @@ void AP_GPS::send_mavlink_gps_raw(mavlink_channel_t chan)
     horizontal_accuracy(0, hacc);
     vertical_accuracy(0, vacc);
     speed_accuracy(0, sacc);
+    yaw_accuracy(0, yacc_deg);  // not using gps_yaw_deg: references channel 1
     mavlink_msg_gps_raw_int_send(
         chan,
         last_fix_time_ms(0)*(uint64_t)1000,
@@ -1400,7 +1411,7 @@ void AP_GPS::send_mavlink_gps_raw(mavlink_channel_t chan)
         hacc * 1000,          // one-sigma standard deviation in mm
         vacc * 1000,          // one-sigma standard deviation in mm
         sacc * 1000,          // one-sigma standard deviation in mm/s
-        0,                    // TODO one-sigma heading accuracy standard deviation
+        yacc_deg * 1e5,       // one-sigma heading accuracy standard deviation in degE5
         gps_yaw_cdeg(0));
 }
 #endif  // AP_GPS_GPS_RAW_INT_SENDING_ENABLED
@@ -1417,6 +1428,7 @@ void AP_GPS::send_mavlink_gps2_raw(mavlink_channel_t chan)
     float hacc = 0.0f;
     float vacc = 0.0f;
     float sacc = 0.0f;
+    float yacc_deg = 0.0f;
     float undulation = 0.0;
     float height_elipsoid_mm = 0;
     if (get_undulation(1, undulation)) {
@@ -1425,6 +1437,7 @@ void AP_GPS::send_mavlink_gps2_raw(mavlink_channel_t chan)
     horizontal_accuracy(1, hacc);
     vertical_accuracy(1, vacc);
     speed_accuracy(1, sacc);
+    yaw_accuracy(1, yacc_deg);
     mavlink_msg_gps2_raw_send(
         chan,
         last_fix_time_ms(1)*(uint64_t)1000,
@@ -1444,7 +1457,7 @@ void AP_GPS::send_mavlink_gps2_raw(mavlink_channel_t chan)
         hacc * 1000,          // one-sigma standard deviation in mm
         vacc * 1000,          // one-sigma standard deviation in mm
         sacc * 1000,          // one-sigma standard deviation in mm/s
-        0);                    // TODO one-sigma heading accuracy standard deviation
+        yacc_deg * 1e5);      // one-sigma heading accuracy standard deviation in degE5
 }
 #endif // AP_GPS_GPS2_RAW_SENDING_ENABLED
 

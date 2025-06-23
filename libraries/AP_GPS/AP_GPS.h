@@ -354,6 +354,11 @@ public:
         return vertical_accuracy(primary_instance, vacc);
     }
 
+    bool yaw_accuracy(uint8_t instance, float &yacc) const;
+    bool yaw_accuracy(float &yacc) const {
+        return yaw_accuracy(primary_instance, yacc);
+    }
+
     CovarianceType position_covariance(const uint8_t instance, Matrix3f& cov) const WARN_IF_UNUSED;
 
     // 3D velocity in NED format
