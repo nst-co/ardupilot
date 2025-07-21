@@ -16,7 +16,7 @@ void ModeManual::update()
     desired_throttle = desired_throttle * g2.manual_throttle_rate / 100.0;
 
     // apply manual steering expo
-    desired_steering = 4500.0 * input_expo(desired_steering / 4500, g2.manual_steering_expo);
+    desired_steering = 4500.0 * input_expo(desired_steering / 4500, g2.manual_steering_expo) * g2.manual_steering_rate / 100.0;
 
     // if vehicle is balance bot, calculate actual throttle required for balancing
     if (rover.is_balancebot()) {

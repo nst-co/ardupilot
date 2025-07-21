@@ -661,6 +661,15 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("FS_RADIO_TIMEOUT", 59, ParametersG2, fs_radio_timeout, 500),
 
+    // @Param: MANUAL_STR_RATE
+    // @DisplayName: Manual Steering Rate
+    // @Description: Ratio to maximum steering for manual operation
+    // @Units: %
+    // @Range: 0 100
+    // @Increment: 0.1
+    // @User: Advanced
+    AP_GROUPINFO("MANUAL_STR_RATE", 60, ParametersG2, manual_steering_rate, 100),
+
     AP_GROUPEND
 };
 

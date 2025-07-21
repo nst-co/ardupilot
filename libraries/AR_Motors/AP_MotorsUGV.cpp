@@ -880,7 +880,7 @@ void AP_MotorsUGV::output_regular(bool armed, float ground_speed, float steering
         float throttle_rateLeft = 1.0f;
         float throttle_rateRight = 1.0f;
         if (fabsf(steering) > 90.0f) { // Output adjustment for turn angles exceeding 2%
-            const float max_angle_outside = constrain_float(_steering_throttle_mix, 0.3f, 0.5f);
+            const float max_angle_outside = constrain_float(_steering_throttle_mix, 0.1f, 0.5f);
             const float theta = (steering / 4500.0f) * max_angle_outside;
             const float rearCenterTurningRadius = _wheelbase / tanf(theta) - _tread / 2.0f;
             const float diffRate = _tread / 2.0f / fabsf(rearCenterTurningRadius);

@@ -432,6 +432,9 @@ public:
     // manual Throttle Rate
     AP_Float manual_throttle_rate;
 
+    // manual Throttle Rate
+    AP_Float manual_steering_rate;
+
     // FS Radio timeout trigger time
     AP_Float fs_radio_timeout;
 };
