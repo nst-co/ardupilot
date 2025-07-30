@@ -564,12 +564,15 @@ const AP_Param::GroupInfo AR_AttitudeControl::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_BAL_LIM_THR", 15, AR_AttitudeControl, _pitch_limit_throttle_thresh, AR_ATTCONTROL_PITCH_LIM_THR_THRESH),
 
+    AP_SUBGROUPINFO(_steer_backward_rate_pid, "_STR_REV_", 16, AR_AttitudeControl, AC_PID),
+
     AP_GROUPEND
 };
 
 AR_AttitudeControl::AR_AttitudeControl() :
     _steer_angle_p(AR_ATTCONTROL_STEER_ANG_P),
     _steer_rate_pid(AR_ATTCONTROL_STEER_RATE_P, AR_ATTCONTROL_STEER_RATE_I, AR_ATTCONTROL_STEER_RATE_D, AR_ATTCONTROL_STEER_RATE_FF, AR_ATTCONTROL_STEER_RATE_IMAX, 0.0f, AR_ATTCONTROL_STEER_RATE_FILT, 0.0f),
+    _steer_backward_rate_pid(AR_ATTCONTROL_STEER_RATE_P, AR_ATTCONTROL_STEER_RATE_I, AR_ATTCONTROL_STEER_RATE_D, AR_ATTCONTROL_STEER_RATE_FF, AR_ATTCONTROL_STEER_RATE_IMAX, 0.0f, AR_ATTCONTROL_STEER_RATE_FILT, 0.0f),
     _throttle_speed_pid(AR_ATTCONTROL_THR_SPEED_P, AR_ATTCONTROL_THR_SPEED_I, AR_ATTCONTROL_THR_SPEED_D, 0.0f, AR_ATTCONTROL_THR_SPEED_IMAX, 0.0f, AR_ATTCONTROL_THR_SPEED_FILT, 0.0f),
     _pitch_to_throttle_pid(AR_ATTCONTROL_PITCH_THR_P, AR_ATTCONTROL_PITCH_THR_I, AR_ATTCONTROL_PITCH_THR_D, 0.0f, AR_ATTCONTROL_PITCH_THR_IMAX, 0.0f, AR_ATTCONTROL_PITCH_THR_FILT, 0.0f),
     _sailboat_heel_pid(AR_ATTCONTROL_HEEL_SAIL_P, AR_ATTCONTROL_HEEL_SAIL_I, AR_ATTCONTROL_HEEL_SAIL_D, 0.0f, AR_ATTCONTROL_HEEL_SAIL_IMAX, 0.0f, AR_ATTCONTROL_HEEL_SAIL_FILT, 0.0f)
@@ -636,7 +639,7 @@ float AR_AttitudeControl::get_turn_rate_from_heading(float heading_rad, float ra
 // positive yaw is to the right
 // return value is normally in range -1.0 to +1.0 but can be higher or lower
 // also sets steering_limit_left and steering_limit_right flags
-float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_limit_left, bool motor_limit_right, float dt)
+float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_limit_left, bool motor_limit_right, float dt, bool reverse)
 {
     // sanity check dt
     dt = constrain_float(dt, 0.0f, 1.0f);
@@ -650,6 +653,8 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
     if ((_steer_turn_last_ms == 0) || ((now - _steer_turn_last_ms) > AR_ATTCONTROL_TIMEOUT_MS)) {
         _steer_rate_pid.reset_filter();
         _steer_rate_pid.reset_I();
+        _steer_backward_rate_pid.reset_filter();
+        _steer_backward_rate_pid.reset_I();
         _desired_turn_rate = AP::ahrs().get_yaw_rate_earth();
     }
     _steer_turn_last_ms = now;
@@ -694,8 +699,17 @@ float AR_AttitudeControl::get_steering_out_rate(float desired_rate, bool motor_l
     }
 
     // update pid to calculate output to motors
-    float output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
-    output += _steer_rate_pid.get_ff();
+    float output;
+    if(!reverse)
+    {
+        output = _steer_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
+        output += _steer_rate_pid.get_ff();
+    }
+    else
+    {
+        output = _steer_backward_rate_pid.update_all(_desired_turn_rate, AP::ahrs().get_yaw_rate_earth(), dt, (motor_limit_left || motor_limit_right));
+        output += _steer_backward_rate_pid.get_ff();
+    }
     // constrain and return final output
     return output;
 }
@@ -1091,6 +1105,7 @@ float AR_AttitudeControl::get_stopping_distance(float speed) const
 void AR_AttitudeControl::relax_I()
 {
     _steer_rate_pid.reset_I();
+    _steer_backward_rate_pid.reset_I();
     _throttle_speed_pid.reset_I();
     _pitch_to_throttle_pid.reset_I();
 }
@@ -1099,6 +1114,7 @@ void AR_AttitudeControl::set_notch_sample_rate(float sample_rate)
 {
 #if AP_FILTER_ENABLED
     _steer_rate_pid.set_notch_sample_rate(sample_rate);
+    _steer_backward_rate_pid.set_notch_sample_rate(sample_rate);
     _throttle_speed_pid.set_notch_sample_rate(sample_rate);
     _pitch_to_throttle_pid.set_notch_sample_rate(sample_rate);
 #endif
