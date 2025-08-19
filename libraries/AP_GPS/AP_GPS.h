@@ -112,7 +112,7 @@ public:
         GPS_TYPE_UNICORE_NMEA = 24,
         GPS_TYPE_UNICORE_MOVINGBASE_NMEA = 25,
         GPS_TYPE_SBF_DUAL_ANTENNA = 26,
-#if HAL_SIM_GPS_ENABLED
+#if AP_SIM_GPS_ENABLED
         GPS_TYPE_SITL = 100,
 #endif
     };
@@ -607,6 +607,9 @@ public:
     uint8_t get_auto_switch_type() const { return _auto_switch; }
 #endif
 
+    // Inject a packet of raw binary to a GPS
+    void inject_data(const uint8_t *data, uint16_t len);
+
 protected:
 
     // configuration parameters
@@ -756,7 +759,6 @@ private:
     void handle_gps_inject(const mavlink_message_t &msg);
 
     //Inject a packet of raw binary to a GPS
-    void inject_data(const uint8_t *data, uint16_t len);
     void inject_data(uint8_t instance, const uint8_t *data, uint16_t len);
 
 #if AP_GPS_BLENDED_ENABLED

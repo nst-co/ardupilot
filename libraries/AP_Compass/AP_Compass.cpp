@@ -1444,17 +1444,6 @@ void Compass::probe_i2c_spi_compasses(void)
         CHECK_UNREG_LIMIT_RETURN;
         break;
 
-    case AP_BoardConfig::VRX_BOARD_CORE10:
-    case AP_BoardConfig::VRX_BOARD_UBRAIN51:
-    case AP_BoardConfig::VRX_BOARD_UBRAIN52: {
-#if AP_COMPASS_HMC5843_ENABLED
-        // external i2c bus
-        ADD_BACKEND(DRIVER_HMC5843, AP_Compass_HMC5843::probe(GET_I2C_DEVICE(1, HAL_COMPASS_HMC5843_I2C_ADDR),
-                    true, ROTATION_ROLL_180));
-#endif  // AP_COMPASS_HMC5843_ENABLED
-    }
-    break;
-
     default:
         break;
     }
@@ -1495,12 +1484,6 @@ void Compass::probe_i2c_spi_compasses(void)
                         false, ROTATION_ROLL_180_YAW_90));
         }
 #endif  // AP_COMPASS_IST8310_ENABLED
-        break;
-
-    case AP_BoardConfig::PX4_BOARD_SP01:
-#if AP_COMPASS_AK8963_ENABLED
-        ADD_BACKEND(DRIVER_AK8963, AP_Compass_AK8963::probe_mpu9250(1, ROTATION_NONE));
-#endif
         break;
 
     case AP_BoardConfig::PX4_BOARD_PHMINI:
