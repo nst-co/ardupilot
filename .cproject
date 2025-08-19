@@ -18,7 +18,7 @@
 					<folderInfo id="cdt.managedbuild.toolchain.gnu.cygwin.base.666014198.1559576540" name="/" resourcePath="">
 						<toolChain id="cdt.managedbuild.toolchain.gnu.cygwin.base.202829884" name="Cygwin GCC" superClass="cdt.managedbuild.toolchain.gnu.cygwin.base">
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.Cygwin_PE64" id="cdt.managedbuild.target.gnu.platform.cygwin.base.1817150233" name="Debug Platform" osList="win32" superClass="cdt.managedbuild.target.gnu.platform.cygwin.base"/>
-							<builder arguments="waf -j 4" autoBuildTarget="build" command="c:\cygwin64\bin\python3.7m" enableAutoBuild="true" id="cdt.managedbuild.target.gnu.builder.cygwin.base.226240287" incrementalBuildTarget="build" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.cygwin.base"/>
+							<builder arguments="waf -j 4" autoBuildTarget="build" command="c:\cygwin64\bin\python3.8" enableAutoBuild="true" id="cdt.managedbuild.target.gnu.builder.cygwin.base.226240287" incrementalBuildTarget="build" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.target.gnu.builder.cygwin.base"/>
 							<tool id="cdt.managedbuild.tool.gnu.assembler.cygwin.base.1194232627" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.cygwin.base">
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1401366678" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
