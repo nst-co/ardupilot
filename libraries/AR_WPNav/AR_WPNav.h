@@ -201,6 +201,7 @@ protected:
 
     // speed_max handling
     float _base_speed_max;          // speed max (in m/s) derived from parameters or passed into init
+    float _base_speed_max_last;
     float _nudge_speed_max;         // "nudge" speed max (in m/s) normally from the pilot.  has no effect if less than _base_speed_max.  always positive.
     //uint32_t _last_speed_update_ms; // system time that speed_max was last update.  used to ensure speed_max is not update too quickly
     float _base_accel;              // speed acceleration (in m/s/s)

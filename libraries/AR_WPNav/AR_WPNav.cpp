@@ -142,6 +142,7 @@ void AR_WPNav::init(float speed_max)
         _base_speed_max = _speed_max;
     }
     _base_speed_max = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
+    _base_speed_max_last = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
     float atc_accel_max = MIN(_atc.get_accel_max(), _atc.get_decel_max());
     if (!is_positive(atc_accel_max)) {
         // accel_max of zero means no limit so use maximum acceleration
@@ -239,10 +240,13 @@ void AR_WPNav::update(float dt)
 bool AR_WPNav::set_speed_max(float speed_max)
 {
     // range check target speed
+    /*
     if (speed_max < AR_WPNAV_SPEED_MIN) {
         return false;
     }
+    */
 
+    _base_speed_max_last = _base_speed_max;
     _base_speed_max = speed_max;
     return true;
 }
@@ -255,9 +259,9 @@ bool AR_WPNav::set_acceleration_target(float accel)
         return false;
     }
 
-    float dt = 0.001; // ref void AP_Vehicle::loop()
+    // float dt = 0.001; // ref void AP_Vehicle::loop()
     // update initial speed before setting acceleration
-    update_desired_speed(dt);
+    // update_desired_speed(dt);
 
     _base_accel = accel;
     _is_constant_accel = true;
@@ -699,7 +703,21 @@ void AR_WPNav::update_desired_speed(float dt)
     if(!_is_constant_accel) {
         des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
     } else {
-        des_speed_lim = _atc.get_desired_speed_accel_ideal(_base_accel, dt);
+        // _origin, _base_speed_max_last
+        // _destination, _base_speed_max
+        // a = (v^2 - v0^2) / (2 * total_dist)
+        const float total_dist = _origin.get_distance(_destination);
+        // const float dist_travelled = _origin.get_distance(current_loc);
+        const float dist_travelled = constrain_float(total_dist - _distance_to_destination, 0.0f, total_dist);
+        if (total_dist > 0.0f) {
+            const float v0 = _base_speed_max_last;
+            const float v1 = _base_speed_max;
+            const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
+            float des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
+            des_speed_lim = _reversed ? -des_speed : des_speed;
+        } else {
+            des_speed_lim = _reversed ? -_base_speed_max : _base_speed_max;
+        }
     }
 
     // reduce speed to limit overshoot from line between origin and destination
