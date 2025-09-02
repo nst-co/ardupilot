@@ -285,11 +285,13 @@ void AR_WPNav::set_nudge_speed_max(float nudge_speed_max)
 // next_destination should be provided if known to allow smooth cornering
 bool AR_WPNav::set_desired_location(const Location& destination, Location next_destination)
 {
-    float next_leg_bearing_cd = AR_WPNAV_HEADING_UNKNOWN;
+//    float next_leg_bearing_cd = AR_WPNAV_HEADING_UNKNOWN;
     Location current_loc;
+/*
     if (!_is_omni && AP::ahrs().get_location(current_loc)) {
         next_leg_bearing_cd = current_loc.get_bearing_to(next_destination);
     }
+*/
 
 /*
     // re-initialise if inactive, previous destination has been interrupted or different controller was used
@@ -392,6 +394,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
     }
 */
     // set final desired speed and whether vehicle should pivot
+/*
     _desired_speed_final = _base_speed_max; // = 0.0f;
     // 到達速度の変更：最終地点のみ有効化
     if (_destination.isLastDestination && !is_equal(next_leg_bearing_cd, AR_WPNAV_HEADING_UNKNOWN)) {
@@ -413,6 +416,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
             apply_speed_min(_desired_speed_final);
         }
     }
+*/
 
     // scurves used for navigation to destination
     _nav_control_type = NavControllerType::NAV_SCURVE;
@@ -656,11 +660,13 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
             des_speed_lim = _atc.get_desired_speed_accel_ideal(_base_accel, dt);
         }
         // limit speed based on distance to waypoint and max acceleration/deceleration
+/*
         // 到達速度の変更：最終地点のみ有効化
         if (_destination.isLastDestination && is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
             const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination  * _atc.get_decel_max() + sq(_desired_speed_final));
             des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
         }
+*/
 
         _desired_speed_limited = des_speed_lim;
         _desired_turn_rate_rads = 0.0;
@@ -748,10 +754,12 @@ void AR_WPNav::update_desired_speed(float dt)
 
     // limit speed based on distance to waypoint and max acceleration/deceleration
     // 到達速度の変更：最終地点のみ有効化
+/*
     if (_destination.isLastDestination && is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
         const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination  * _atc.get_decel_max() + sq(_desired_speed_final));
         des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
     }
+*/
 
     _desired_speed_limited = des_speed_lim;
 }

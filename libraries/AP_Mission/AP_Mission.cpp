@@ -869,13 +869,14 @@ bool AP_Mission::read_cmd_from_storage(uint16_t index, Mission_Command& cmd) con
         cmd.content.location.terrain_alt = packed_content.location.flags.terrain_alt;
         cmd.content.location.origin_alt = packed_content.location.flags.origin_alt;
         cmd.content.location.loiter_xtrack = packed_content.location.flags.loiter_xtrack;
-        cmd.content.location.isLastDestination = (index + 1 >= (unsigned)_cmd_total);
         cmd.content.location.alt = packed_content.location.alt;
         cmd.content.location.lat = packed_content.location.lat;
         cmd.content.location.lng = packed_content.location.lng;
 
         if (packed_content.location.flags.type_specific_bit_0) {
             cmd.type_specific_bits |= 1U << 0;
+            // check if isLastDestination
+            cmd.content.location.isLastDestination = 1;
         }
         if (packed_content.location.flags.type_specific_bit_1) {
             cmd.type_specific_bits |= 1U << 1;
@@ -1479,6 +1480,13 @@ MAV_MISSION_RESULT AP_Mission::mavlink_int_to_mission_cmd(const mavlink_mission_
 
         cmd.content.location.alt = packet.z * 100.0f;       // convert packet's alt (m) to cmd alt (cm)
 
+        // check if isLastDestination
+        if(packet.param2 == 1.0)
+        {
+            cmd.type_specific_bits |= (1U << 0);
+            cmd.content.location.isLastDestination = 1;
+        }
+
         switch (packet.frame) {
 
         case MAV_FRAME_MISSION:
@@ -1624,6 +1632,10 @@ bool AP_Mission::mission_cmd_to_mavlink_int(const AP_Mission::Mission_Command& c
 #else
         // delay at waypoint in seconds
         packet.param1 = cmd.p1;
+        // check if isLastDestination
+        if (cmd.type_specific_bits & (1U<<0)) {
+            packet.param2 = 1.0;
+        }
 #endif
         break;
 
@@ -2786,6 +2798,10 @@ const char *AP_Mission::Mission_Command::type() const
 {
     switch (id) {
     case MAV_CMD_NAV_WAYPOINT:
+        // check if isLastDestination
+        if (content.location.isLastDestination) {
+            return "WP Last";
+        }
         return "WP";
     case MAV_CMD_NAV_SPLINE_WAYPOINT:
         return "SplineWP";

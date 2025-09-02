@@ -209,7 +209,7 @@ protected:
 
     // main outputs from navigation library
     float _desired_speed_limited;   // desired speed (above) but accel/decel limited and reduced to keep vehicle within _overshoot of line
-    float _desired_speed_final;     // desired speed in m/s when we reach the destination
+//    float _desired_speed_final;     // desired speed in m/s when we reach the destination
     float _desired_turn_rate_rads;  // desired turn-rate in rad/sec (negative is counter clockwise, positive is clockwise)
     float _desired_lat_accel;       // desired lateral acceleration (for reporting only)
     float _desired_heading_cd;      // desired heading (back towards line between origin and destination)
