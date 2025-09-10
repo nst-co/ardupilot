@@ -103,6 +103,7 @@ public:
 
     // return distance (in meters) to destination
     virtual float get_distance_to_destination() const { return 0.0f; }
+    virtual float get_distance_to_next_destination() const { return 0.0f; }
 
     // return desired location (used in Guided, Auto, RTL, etc)
     // return true on success, false if there is no valid destination
@@ -217,6 +218,7 @@ protected:
 
     // private members for waypoint navigation
     float _distance_to_destination; // distance from vehicle to final destination in meters
+    float _distance_to_next_destination;
     bool _reached_destination;  // true once the vehicle has reached the destination
     float _desired_yaw_cd;      // desired yaw in centi-degrees.  used in Auto, Guided and Loiter
 };
@@ -269,6 +271,7 @@ public:
 
     // return distance (in meters) to destination
     float get_distance_to_destination() const override;
+    float get_distance_to_next_destination() const override;
 
     // get or set desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;

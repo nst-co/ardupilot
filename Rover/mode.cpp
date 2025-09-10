@@ -476,6 +476,7 @@ void Mode::navigate_to_waypoint()
     // update navigation controller
     g2.wp_nav.update(rover.G_Dt);
     _distance_to_destination = g2.wp_nav.get_distance_to_destination();
+    _distance_to_next_destination = g2.wp_nav.get_distance_to_next_destination();
 
 #if AP_AVOIDANCE_ENABLED
     // sailboats trigger tack if simple avoidance becomes active

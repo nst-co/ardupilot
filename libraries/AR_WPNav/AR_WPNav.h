@@ -64,6 +64,7 @@ public:
 
     // return distance (in meters) to destination
     float get_distance_to_destination() const { return _distance_to_destination; }
+    float get_distance_to_next_destination() const { return _look_next_waypoint ? _distance_to_next_destination : _distance_to_destination; }
 
     // return true if destination is valid
     bool is_destination_valid() const { return _orig_and_dest_valid; }
@@ -164,6 +165,8 @@ protected:
     AP_Float _jerk_max;             // max jerk (change in acceleration).  If zero then value is same as accel_max
     AP_Float _radius_last;          // distance in meters from a last waypoint when we consider the waypoint has been reached
     AP_Float _overshoot_l;          // last waypoint maximum horizontal overshoot in meters
+    AP_Float _looknext_k;           // distance in meters from a last waypoint when we consider the waypoint has been reached
+    AP_Float _looknext_c;           // last waypoint maximum horizontal overshoot in meters
 
     // references
     AR_AttitudeControl& _atc;       // rover attitude control library
@@ -186,6 +189,7 @@ protected:
     float _radius_tmp;
     float _overshoot_tmp;
     bool _is_omni;                  // true if vehicle frame_type is omni
+    bool _look_next_waypoint;
 
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update
@@ -218,5 +222,6 @@ protected:
 
     // variables for reporting
     float _distance_to_destination; // distance from vehicle to final destination in meters
+    float _distance_to_next_destination; // distance from vehicle to next destination in meters
     bool _reached_destination;      // true once the vehicle has reached the destination
 };

@@ -36,6 +36,8 @@ extern const AP_HAL::HAL& hal;
 #define AR_WPNAV_SNAP_MAX               15.0f   // scurve snap (change in jerk) in m/s/s/s/s
 #define AR_WPNAV_OVERSHOOT_DEFAULT      2.0f
 #define AR_WPNAV_ACCEL_MAX              20.0    // acceleration used when user has specified no acceleration limit
+#define AR_WPNAV_LOOKNEXT_K_DEFAULT     0.0f
+#define AR_WPNAV_LOOKNEXT_C_DEFAULT     0.0f
 
 const AP_Param::GroupInfo AR_WPNav::var_info[] = {
 
@@ -120,6 +122,24 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("OVERSHOOT_L", 12, AR_WPNav, _overshoot_l, AR_WPNAV_OVERSHOOT_DEFAULT),
 
+    // @Param: LOOKNEXT_K
+    // @DisplayName: Multiplier of the waypoint switching
+    // @Description: Multiplier used to calculate the waypoint switching threshold based on WP speed.
+    // @Units: s
+    // @Range: 0 10
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("LOOKNEXT_K", 13, AR_WPNav, _looknext_k, AR_WPNAV_LOOKNEXT_K_DEFAULT),
+
+    // @Param: LOOKNEXT_C
+    // @DisplayName: Constant offset of the waypoint switching
+    // @Description: Constant offset added to the waypoint switching threshold distance.
+    // @Units: m
+    // @Range: 0 10
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("LOOKNEXT_C", 14, AR_WPNav, _looknext_c, AR_WPNAV_LOOKNEXT_C_DEFAULT),
+
     AP_GROUPEND
 };
 
@@ -165,6 +185,7 @@ void AR_WPNav::init(float speed_max)
     _reached_destination = false;
     _fast_waypoint = false;
     _is_omni = AP::motors_ugv()->is_omni();
+    _look_next_waypoint = false;
 
     // ensure pivot turns are deactivated
     _pivot.deactivate();
@@ -322,6 +343,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
     // initialise some variables
     //_origin = _destination;
     _destination = destination;
+    _next_destination = next_destination;
     _orig_and_dest_valid = true;
     _reached_destination = false;
 
@@ -480,6 +502,7 @@ bool AR_WPNav::set_desired_location_expect_fast_update(const Location &destinati
     // initialise some variables
     _origin = _destination;
     _destination = destination;
+    _next_destination = Location();
     _orig_and_dest_valid = true;
     _reached_destination = false;
 
@@ -625,10 +648,14 @@ void AR_WPNav::update_distance_and_bearing_to_destination()
     Location current_loc;
     if (!_orig_and_dest_valid || !AP::ahrs().get_location(current_loc)) {
         _distance_to_destination = 0.0f;
+        _distance_to_next_destination = 0.0f;
         _wp_bearing_cd = 0.0f;
         return;
     }
     _distance_to_destination = current_loc.get_distance(_destination);
+    if (_next_destination.initialised()) {
+        _distance_to_next_destination = current_loc.get_distance(_next_destination);
+    }
     _wp_bearing_cd = current_loc.get_bearing_to(_destination);
 }
 
@@ -679,10 +706,24 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
         */
 
         float current_speed;
+        const float looknext_k = _looknext_k;
         _atc.get_forward_speed(current_speed);
         // run L1 controller
+        float threshold_dist = (_looknext_k * _base_speed_max) + _looknext_c;
         _nav_controller.set_reverse(_reversed);
-        _nav_controller.update_waypoint(_reached_destination ? current_loc : _origin, _destination, _radius_tmp);
+//        _nav_controller.update_waypoint(_reached_destination ? current_loc : _origin, _destination, _radius_tmp);
+        if (_reached_destination) {
+            _nav_controller.update_waypoint(current_loc, _destination, _radius_tmp);
+            _look_next_waypoint = false;
+        } else if ( !is_equal(looknext_k, 0.0f)
+                && _next_destination.initialised()
+                && (_distance_to_destination <= threshold_dist)) {
+            _nav_controller.update_waypoint(_origin, _next_destination, _radius_tmp);
+            _look_next_waypoint = true;
+        } else {
+            _nav_controller.update_waypoint(_origin, _destination, _radius_tmp);
+            _look_next_waypoint = false;
+        }
 
         // retrieve lateral acceleration, heading back towards line and crosstrack error
         _desired_lat_accel = constrain_float(_nav_controller.lateral_acceleration(), -_atc.get_turn_lat_accel_max(), _atc.get_turn_lat_accel_max());
@@ -850,6 +891,7 @@ bool AR_WPNav::set_origin_and_destination_to_stopping_point()
         return false;
     }
     _origin = _destination = stopping_loc;
+    _next_destination = Location();
     _orig_and_dest_valid = true;
     return true;
 }

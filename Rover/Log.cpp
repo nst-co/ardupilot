@@ -128,7 +128,7 @@ void Rover::Log_Write_Nav_Tuning()
     struct log_Nav_Tuning pkt = {
         LOG_PACKET_HEADER_INIT(LOG_NTUN_MSG),
         time_us             : AP_HAL::micros64(),
-        wp_distance         : control_mode->get_distance_to_destination(),
+        wp_distance         : control_mode->get_distance_to_next_destination(),
         wp_bearing          : control_mode->wp_bearing(),
         nav_bearing         : control_mode->nav_bearing(),
         yaw                 : (uint16_t)ahrs.yaw_sensor,

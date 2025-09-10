@@ -280,6 +280,17 @@ float ModeAuto::get_distance_to_destination() const
     return 0.0f;
 }
 
+// return distance (in meters) to destination
+float ModeAuto::get_distance_to_next_destination() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return _distance_to_next_destination;
+    default:
+        return 0.0f;
+    }
+}
+
 // get desired location
 bool ModeAuto::get_desired_location(Location& destination) const
 {
