@@ -140,6 +140,15 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("LOOKNEXT_C", 14, AR_WPNav, _looknext_c, AR_WPNAV_LOOKNEXT_C_DEFAULT),
 
+    // @Param: TIME_FF
+    // @DisplayName: Time constant used to estimate the target velocity
+    // @Description: Time in seconds used to estimate the target velocity at a future position.
+    // @Units: s
+    // @Range: 0 10
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("LOOKAHEAD_T", 15, AR_WPNav, _lookahead_time, 0),
+
     AP_GROUPEND
 };
 
@@ -761,7 +770,11 @@ void AR_WPNav::update_desired_speed(float dt)
             const float v1 = _base_speed_max;
             const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
             float des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
-            des_speed_lim = _reversed ? -des_speed : des_speed;
+
+            float lookahead_dist = des_speed * _lookahead_time;
+            float lookahead_travelled = constrain_float(total_dist + lookahead_dist - _distance_to_destination, 0.0f, total_dist);
+            float lookahead_des_speed = safe_sqrt(sq(v0) + 2.0f * a * lookahead_travelled);
+            des_speed_lim = _reversed ? -lookahead_des_speed : lookahead_des_speed;
         } else {
             des_speed_lim = _reversed ? -_base_speed_max : _base_speed_max;
         }
