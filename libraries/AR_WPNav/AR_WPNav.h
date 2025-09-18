@@ -168,6 +168,7 @@ protected:
     AP_Float _looknext_k;           // distance in meters from a last waypoint when we consider the waypoint has been reached
     AP_Float _looknext_c;           // last waypoint maximum horizontal overshoot in meters
     AP_Float _lookahead_time;       // Time in seconds used to project the current velocity forward to estimate the target velocity at a future position.
+    AP_Float _reached_thre_rate;    // Fraction of the waypoint switching threshold distance below which the target is considered reached.
 
     // references
     AR_AttitudeControl& _atc;       // rover attitude control library

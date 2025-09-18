@@ -149,6 +149,15 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("LOOKAHEAD_T", 15, AR_WPNav, _lookahead_time, 0),
 
+    // @Param: NXT_TH_RATE
+    // @DisplayName: Fraction of the threshold distance to consider reached.
+    // @Description: Fraction of the waypoint switching threshold distance below which the target is considered reached.
+    // @Units: %
+    // @Range: 0 100
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("NXT_TH_RATE", 16, AR_WPNav, _reached_thre_rate, 0),
+
     AP_GROUPEND
 };
 
@@ -353,6 +362,8 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
     //_origin = _destination;
     _destination = destination;
     _next_destination = next_destination;
+    _look_next_waypoint = false;
+
     _orig_and_dest_valid = true;
     _reached_destination = false;
 
@@ -728,6 +739,10 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
                 && _next_destination.initialised()
                 && (_distance_to_destination <= threshold_dist)) {
             _nav_controller.update_waypoint(_origin, _next_destination, _radius_tmp);
+            if(_reached_thre_rate > 0 && _distance_to_destination <= threshold_dist * _reached_thre_rate / 100.0f)
+            {
+                _reached_destination = true;
+            }
             _look_next_waypoint = true;
         } else {
             _nav_controller.update_waypoint(_origin, _destination, _radius_tmp);

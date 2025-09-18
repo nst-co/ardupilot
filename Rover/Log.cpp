@@ -130,6 +130,7 @@ void Rover::Log_Write_Nav_Tuning()
         time_us             : AP_HAL::micros64(),
         wp_distance         : control_mode->get_distance_to_next_destination(),
         wp_bearing          : control_mode->wp_bearing(),
+        // nav_bearing         : control_mode->get_distance_to_destination(),
         nav_bearing         : control_mode->nav_bearing(),
         yaw                 : (uint16_t)ahrs.yaw_sensor,
         xtrack_error        : control_mode->crosstrack_error()
