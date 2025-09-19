@@ -156,7 +156,7 @@ const AP_Param::GroupInfo AP_MotorsUGV::var_info[] = {
     // @DisplayName: Throttle maximum in manual mode
     // @Description: Throttle maximum percentage the autopilot will apply in manual mode. This can be used to prevent overheating an ESC or motor on an electric rover
     // @Units: %
-    // @Range: 30 100
+    // @Range: 5 100
     // @Increment: 1
     // @User: Advanced
     AP_GROUPINFO("MANUALTHRMAX", 19, AP_MotorsUGV, _manual_throttle_max, 100),
@@ -634,7 +634,7 @@ void AP_MotorsUGV::sanity_check_parameters()
 {
     _throttle_min.set(constrain_int16(_throttle_min, 0, 20));
     _throttle_max.set(constrain_int16(_throttle_max, 30, 100));
-    _manual_throttle_max.set(constrain_int16(_manual_throttle_max, 30, 100));
+    _manual_throttle_max.set(constrain_int16(_manual_throttle_max, 5, 100));
     _vector_angle_max.set(constrain_float(_vector_angle_max, 0.0f, 90.0f));
 }
 
