@@ -234,7 +234,7 @@ IMU Invensense SPI:mpu9250 ROTATION_YAW_270
 
 # compass as part
 COMPASS AK8963:probe_mpu9250 0 ROTATION_YAW_270
-define HAL_PROBE_EXTERNAL_I2C_COMPASSES
+define AP_COMPASS_PROBING_ENABLED 1
 
 define HAL_DEFAULT_INS_FAST_SAMPLE 3
 
@@ -257,7 +257,7 @@ define HAL_HAVE_SAFETY_SWITCH 1
 # This enables the use of a ramtron device for storage, if one is
 # found on SPI. You must have a ramtron entry in the SPI device table.
 
-# Enable RAMTROM parameter storage.
+# Enable RAMTRON parameter storage.
 define HAL_WITH_RAMTRON 1
 
 # Enable FAT filesystem support (needs a microSD defined via SDIO).

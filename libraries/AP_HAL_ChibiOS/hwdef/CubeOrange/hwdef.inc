@@ -256,7 +256,7 @@ COMPASS AK09916:probe_ICM20948 0 ROTATION_ROLL_180_YAW_90
 define HAL_HEATER_MAG_OFFSET {AP_HAL::Device::make_bus_id(AP_HAL::Device::BUS_TYPE_SPI,4,1,9),Vector3f(10,30,-235)}
 
 # also probe for external compasses
-define HAL_PROBE_EXTERNAL_I2C_COMPASSES
+define AP_COMPASS_PROBING_ENABLED 1
 
 define HAL_CHIBIOS_ARCH_FMUV3 1
 
@@ -265,7 +265,7 @@ define BOARD_TYPE_DEFAULT 3
 # allow to have have a dedicated safety switch pin
 define HAL_HAVE_SAFETY_SWITCH 1
 
-# Enable RAMTROM parameter storage.
+# Enable RAMTRON parameter storage.
 define HAL_WITH_RAMTRON 1
 
 # Setup the IMU heater

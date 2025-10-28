@@ -13,7 +13,7 @@ How to use?
 Starting in the ardupilot directory.
 ~/ardupilot $ python Tools/scripts/size_compare_branches.py --branch=[PR_BRANCH_NAME] --vehicle=copter
 
-Output is placed into ../ELF_DIFF_[VEHICLE_NAME]
+Output is placed into ELF_DIFF_[VEHICLE_NAME]
 '''
 
 import copy
@@ -98,9 +98,6 @@ class SizeCompareBranches(object):
         self.jobs = jobs
         self.features = features
 
-        if self.bin_dir is None:
-            self.bin_dir = self.find_bin_dir()
-
         self.boards_by_name = {}
         for board in board_list.BoardList().boards:
             self.boards_by_name[board.name] = board
@@ -170,6 +167,7 @@ class SizeCompareBranches(object):
             'SITL_arm_linux_gnueabihf',
             'RADIX2HD',
             'canzero',
+            't3-gem-o1',
             'CUAV-Pixhack-v3',  # uses USE_BOOTLOADER_FROM_BOARD
             'kha_eth',  # no hwdef-bl.dat
             'TBS-L431-Airspeed',  # uses USE_BOOTLOADER_FROM_BOARD
@@ -230,6 +228,7 @@ class SizeCompareBranches(object):
             'obal',
             'SITL_x86_64_linux_gnu',
             'canzero',
+            't3-gem-o1',
             'linux',
             'pilotpi',
         ]
@@ -247,9 +246,9 @@ class SizeCompareBranches(object):
             'esp32diy',
         ]
 
-    def find_bin_dir(self):
+    def find_bin_dir(self, toolchain_prefix="arm-none-eabi-"):
         '''attempt to find where the arm-none-eabi tools are'''
-        binary = shutil.which("arm-none-eabi-g++")
+        binary = shutil.which(toolchain_prefix + "g++")
         if binary is None:
             return None
         return os.path.dirname(binary)
@@ -629,6 +628,13 @@ class SizeCompareBranches(object):
                 toolchain = ""
             else:
                 toolchain += "-"
+
+            if self.bin_dir is None:
+                self.bin_dir = self.find_bin_dir(toolchain_prefix=toolchain)
+            if self.bin_dir is None:
+                self.progress(f"Gtoolchain: {self.toolchain}")
+                raise ValueError("Crap")
+
             elf_diff_commandline = [
                 "time",
                 "python3",
@@ -637,7 +643,7 @@ class SizeCompareBranches(object):
                 f'--bin_prefix={toolchain}',
                 "--old_alias", "%s %s" % (master_branch, elf_filename),
                 "--new_alias", "%s %s" % (branch, elf_filename),
-                "--html_dir", "../ELF_DIFF_%s_%s" % (board, vehicle_name),
+                "--html_dir", "ELF_DIFF_%s_%s" % (board, vehicle_name),
             ]
 
             try:
@@ -703,10 +709,7 @@ class SizeCompareBranches(object):
             if "master" not in pair or "branch" not in pair:
                 # probably incomplete:
                 continue
-            try:
-                self.elf_diff_results(pair["master"], pair["branch"])
-            except Exception as e:
-                print(f"Exception calling elf_diff: {e}")
+            self.elf_diff_results(pair["master"], pair["branch"])
 
     def emit_csv_for_results(self, results):
         '''emit dictionary of dictionaries as a CSV'''
