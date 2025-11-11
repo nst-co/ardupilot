@@ -120,6 +120,9 @@ struct PACKED log_Nav_Tuning {
     float nav_bearing;
     uint16_t yaw;
     float xtrack_error;
+    float elapsed_time;
+    float self_time_error;
+    float remote_time_error;
 };
 
 // Write a navigation tuning packet
@@ -133,7 +136,10 @@ void Rover::Log_Write_Nav_Tuning()
         // nav_bearing         : control_mode->get_distance_to_destination(),
         nav_bearing         : control_mode->nav_bearing(),
         yaw                 : (uint16_t)ahrs.yaw_sensor,
-        xtrack_error        : control_mode->crosstrack_error()
+        xtrack_error        : control_mode->crosstrack_error(),
+        elapsed_time        : control_mode->get_elapsed_time(),
+        self_time_error     : control_mode->get_self_time_error(),
+        remote_time_error   : control_mode->get_remote_time_error()
     };
     logger.WriteBlock(&pkt, sizeof(pkt));
 }
@@ -277,9 +283,12 @@ const LogStructure Rover::log_structure[] = {
 // @Field: DesYaw: the vehicle's desired heading
 // @Field: Yaw: the vehicle's current heading
 // @Field: XTrack: the vehicle's current distance from the current travel segment
+// @Field: elapsed_time
+// @Field: self_time_error
+// @Field: remote_time_error
 
     { LOG_NTUN_MSG, sizeof(log_Nav_Tuning),
-      "NTUN", "QfffHf", "TimeUS,WpDist,WpBrg,DesYaw,Yaw,XTrack", "smhhhm", "F000B0" },
+      "NTUN", "QfffHffff", "TimeUS,WpDist,WpBrg,DesYaw,Yaw,XTrack,eTime,SelfErrT,RemErrT", "smhhhmsss", "F000B0000" },
     
 // @LoggerMessage: STER
 // @Description: Steering related messages

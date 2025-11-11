@@ -27,6 +27,8 @@ public:
     bool set_speed_max(float speed_max);
     bool set_acceleration_target(float accel);
     void reset_acceleration_target();
+    bool set_desired_time(float time);
+    bool set_remote_time_error(float time);
 
     // set speed nudge in m/s.  this will have no effect unless nudge_speed_max > speed_max
     // nudge_speed_max should always be positive regardless of whether the vehicle is travelling forward or reversing
@@ -100,6 +102,9 @@ public:
     float get_default_jerk() const { return _jerk_max; }
     float get_radius() const { return _radius; }
     float get_pivot_rate() const { return _pivot.get_rate_max(); }
+    float get_nav_elapsed_time() const { return _current_time; }
+    float get_nav_self_time_error() const { return _self_time_error; }
+    float get_nav_remote_time_error() const { return _remote_time_error; }
 
     // calculate stopping location using current position and attitude controller provided maximum deceleration
     // returns true on success, false on failure
@@ -169,6 +174,7 @@ protected:
     AP_Float _looknext_c;           // last waypoint maximum horizontal overshoot in meters
     AP_Float _lookahead_time;       // Time in seconds used to project the current velocity forward to estimate the target velocity at a future position.
     AP_Float _reached_thre_rate;    // Fraction of the waypoint switching threshold distance below which the target is considered reached.
+    AP_Float _timedelay_p;
 
     // references
     AR_AttitudeControl& _atc;       // rover attitude control library
@@ -191,7 +197,9 @@ protected:
     float _radius_tmp;
     float _overshoot_tmp;
     bool _is_omni;                  // true if vehicle frame_type is omni
+    bool _is_initialized;
     bool _look_next_waypoint;
+    bool _is_constant_accel;
 
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update
@@ -211,7 +219,13 @@ protected:
     float _nudge_speed_max;         // "nudge" speed max (in m/s) normally from the pilot.  has no effect if less than _base_speed_max.  always positive.
     //uint32_t _last_speed_update_ms; // system time that speed_max was last update.  used to ensure speed_max is not update too quickly
     float _base_accel;              // speed acceleration (in m/s/s)
-    bool _is_constant_accel;
+    uint32_t _start_time_ms;
+    float _current_time;
+    float _desired_time;
+    float _desired_time_last;
+    float _self_time_error;
+    float _remote_time_error;
+    float _prev_pid_error_diff;
 
     // main outputs from navigation library
     float _desired_speed_limited;   // desired speed (above) but accel/decel limited and reduced to keep vehicle within _overshoot of line

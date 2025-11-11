@@ -92,6 +92,7 @@ public:
         uint8_t speed_type;     // 0=airspeed, 1=ground speed
         float target_ms;        // target speed in m/s, -1 means no change
         float throttle_pct;     // throttle as a percentage (i.e. 1 ~ 100), 0 means no change
+        float expected_elapsed_time;
     };
 
     // set relay command structure

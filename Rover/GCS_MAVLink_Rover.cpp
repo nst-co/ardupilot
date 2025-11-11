@@ -525,6 +525,12 @@ MAV_RESULT GCS_MAVLINK_Rover::handle_command_int_packet(const mavlink_command_in
             case SPEED_TYPE_GROUNDSPEED:
                 break;
         }
+        if(packet.param3 != 0) {
+            if (!rover.control_mode->set_remote_time_error(packet.param3)) {
+                return MAV_RESULT_FAILED;
+            }
+            return MAV_RESULT_ACCEPTED;
+        }
         if (!rover.control_mode->set_desired_speed(packet.param2)) {
             return MAV_RESULT_FAILED;
         }

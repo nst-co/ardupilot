@@ -140,7 +140,7 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("LOOKNEXT_C", 14, AR_WPNav, _looknext_c, AR_WPNAV_LOOKNEXT_C_DEFAULT),
 
-    // @Param: TIME_FF
+    // @Param: LOOKAHEAD_T
     // @DisplayName: Time constant used to estimate the target velocity
     // @Description: Time in seconds used to estimate the target velocity at a future position.
     // @Units: s
@@ -157,6 +157,14 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @Increment: 1
     // @User: Standard
     AP_GROUPINFO("NXT_TH_RATE", 16, AR_WPNav, _reached_thre_rate, 0),
+
+    // @Param: TIMEDELAY_P
+    // @DisplayName: Time-lag compensation control rate P gain
+    // @Description: Time-lag compensation rate P gain.
+    // @Range: 0.000 2.000
+    // @Increment: 0.001
+    // @User: Standard
+    AP_GROUPINFO("TIMEDELAY_P", 17, AR_WPNav, _timedelay_p, 0),
 
     AP_GROUPEND
 };
@@ -181,6 +189,13 @@ void AR_WPNav::init(float speed_max)
     }
     _base_speed_max = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
     _base_speed_max_last = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
+    _start_time_ms = 0;
+    _current_time = 0.0f;
+    _desired_time = 0.0f;
+    _desired_time_last = 0.0f;
+    _self_time_error = 0.0f;
+    _remote_time_error = 0.0f;
+    _prev_pid_error_diff = 0.0f;
     float atc_accel_max = MIN(_atc.get_accel_max(), _atc.get_decel_max());
     if (!is_positive(atc_accel_max)) {
         // accel_max of zero means no limit so use maximum acceleration
@@ -200,6 +215,7 @@ void AR_WPNav::init(float speed_max)
 */
 
     // init some flags
+    _is_initialized = true;
     _reached_destination = false;
     _fast_waypoint = false;
     _is_omni = AP::motors_ugv()->is_omni();
@@ -236,6 +252,10 @@ void AR_WPNav::update(float dt)
         _desired_speed_limited = speed;
     }
     _last_update_ms = AP_HAL::millis();
+    if (_is_initialized) {
+        _start_time_ms = _last_update_ms;
+        _is_initialized = false;
+    }
 
     update_distance_and_bearing_to_destination();
 
@@ -311,6 +331,19 @@ bool AR_WPNav::set_acceleration_target(float accel)
 void AR_WPNav::reset_acceleration_target()
 {
     _is_constant_accel = false;
+}
+
+bool AR_WPNav::set_desired_time(float time)
+{
+    _desired_time_last = _desired_time;
+    _desired_time = time;
+    return true;
+}
+
+bool AR_WPNav::set_remote_time_error(float time)
+{
+    _remote_time_error = time;
+    return true;
 }
 
 // set speed nudge in m/s.  this will have no effect unless nudge_speed_max > speed_max
@@ -783,13 +816,22 @@ void AR_WPNav::update_desired_speed(float dt)
         if (total_dist > 0.0f) {
             const float v0 = _base_speed_max_last;
             const float v1 = _base_speed_max;
+            const float t0 = _desired_time_last;
+            const float t1 = _desired_time;
             const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
+            _current_time = (float)(_last_update_ms - _start_time_ms) / 1000;
             float des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
+            float travelled_ratio = dist_travelled / total_dist;
+            float expected_time = t0 + (t1 - t0) * travelled_ratio;
+            _self_time_error = _current_time - expected_time; // +:遅れている
+            float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
 
             float lookahead_dist = des_speed * _lookahead_time;
             float lookahead_travelled = constrain_float(total_dist + lookahead_dist - _distance_to_destination, 0.0f, total_dist);
             float lookahead_des_speed = safe_sqrt(sq(v0) + 2.0f * a * lookahead_travelled);
+            lookahead_des_speed += _timedelay_p * pid_error_diff;
             des_speed_lim = _reversed ? -lookahead_des_speed : lookahead_des_speed;
+            _prev_pid_error_diff = pid_error_diff;
         } else {
             des_speed_lim = _reversed ? -_base_speed_max : _base_speed_max;
         }

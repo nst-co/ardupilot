@@ -291,6 +291,36 @@ float ModeAuto::get_distance_to_next_destination() const
     }
 }
 
+float ModeAuto::get_elapsed_time() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_elapsed_time();
+    default:
+        return 0.0f;
+    }
+}
+
+float ModeAuto::get_self_time_error() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_self_time_error();
+    default:
+        return 0.0f;
+    }
+}
+
+float ModeAuto::get_remote_time_error() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_remote_time_error();
+    default:
+        return 0.0f;
+    }
+}
+
 // get desired location
 bool ModeAuto::get_desired_location(Location& destination) const
 {
@@ -392,6 +422,30 @@ bool ModeAuto::set_desired_acceleration(float accel)
     case SubMode::WP:
     case SubMode::Stop:
         return g2.wp_nav.set_acceleration_target(accel);
+    default:
+        return false;
+    }
+    return false;
+}
+
+bool ModeAuto::set_desired_time(float time)
+{
+    switch (_submode) {
+    case SubMode::WP:
+    case SubMode::Stop:
+        return g2.wp_nav.set_desired_time(time);
+    default:
+        return false;
+    }
+    return false;
+}
+
+bool ModeAuto::set_remote_time_error(float time)
+{
+    switch (_submode) {
+    case SubMode::WP:
+    case SubMode::Stop:
+        return g2.wp_nav.set_remote_time_error(time);
     default:
         return false;
     }
@@ -1031,6 +1085,9 @@ void ModeAuto::do_change_speed(const AP_Mission::Mission_Command& cmd)
         }
         if (set_desired_acceleration(cmd.content.speed.throttle_pct)) {
             GCS_SEND_TEXT(MAV_SEVERITY_INFO, "accel: %.1f m/s/s", static_cast<double>(cmd.content.speed.throttle_pct));
+        }
+        if (set_desired_time(cmd.content.speed.expected_elapsed_time)) {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "time: %.1f s", static_cast<double>(cmd.content.speed.expected_elapsed_time));
         }
     }
 }

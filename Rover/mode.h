@@ -104,6 +104,9 @@ public:
     // return distance (in meters) to destination
     virtual float get_distance_to_destination() const { return 0.0f; }
     virtual float get_distance_to_next_destination() const { return 0.0f; }
+    virtual float get_elapsed_time() const { return 0.0f; }
+    virtual float get_self_time_error() const { return 0.0f; }
+    virtual float get_remote_time_error() const { return 0.0f; }
 
     // return desired location (used in Guided, Auto, RTL, etc)
     // return true on success, false if there is no valid destination
@@ -125,6 +128,7 @@ public:
 
     // set desired acceleration in m/s/s
     virtual bool set_desired_acceleration(float accel) { return false; }
+    virtual bool set_remote_time_error(float time) { return false; }
 
     // execute the mission in reverse (i.e. backing up)
     void set_reversed(bool value);
@@ -272,6 +276,9 @@ public:
     // return distance (in meters) to destination
     float get_distance_to_destination() const override;
     float get_distance_to_next_destination() const override;
+    float get_elapsed_time() const override;
+    float get_self_time_error() const override;
+    float get_remote_time_error() const override;
 
     // get or set desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;
@@ -283,6 +290,9 @@ public:
 
     // set desired acceleration in m/s
     bool set_desired_acceleration(float accel) override;
+
+    bool set_desired_time(float time);
+    bool set_remote_time_error(float time) override;
 
     // start RTL (within auto)
     void start_RTL();
