@@ -4,6 +4,8 @@ Fly Copter in SITL
 AP_FLAKE8_CLEAN
 '''
 
+from __future__ import annotations
+
 import copy
 import math
 import os
@@ -408,6 +410,52 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.wait_waypoint(0, num_wp-1, timeout=500)
         self.progress("test: MISSION COMPLETE: passed!")
         self.land_and_disarm()
+
+    def WPArcs(self):
+        '''Test WP Arc functionality'''
+        _ = self.load_and_start_mission("ArcWPMissionTest.txt")
+
+        self.wait_waypoint(0, 15, max_dist=10, timeout=400)
+        self.progress("Check that vehicle flys an arc between WP 15 and 16")
+        # A crude check, if the arc waypoint doesn't work then the copter will fly directly south between wp 15 and 16
+        # If the arc waypoint works then we expect the copter to arc 180 deg in a CW direction meaning it will travel east
+        # of WP 15 before attaining WP 16
+        tstart = self.get_sim_time()
+        timeout = 200
+        last_print_time = 0
+        while True:
+            now = self.get_sim_time_cached()
+            delta = now - tstart
+            pos = self.assert_receive_message('GLOBAL_POSITION_INT')
+            current_long = pos.lon * 1e-7
+            desired_long = 149.16522
+            current_wp = self.mav.waypoint_current()
+            if delta > timeout:
+                raise AutoTestTimeoutException(
+                    "Failed to achieve position within %fs" % (timeout,)
+                )
+            if now - last_print_time > 1:
+                self.progress(
+                    "Waiting for current long (%f) > desired long (%f) "
+                    "(%.2fs remaining before timeout)"
+                    % (current_long, desired_long, timeout - delta)
+                )
+                last_print_time = now
+
+            if current_wp > 19:
+                raise NotAchievedException(
+                    "mission progressed beyond WP 19 before current longitude > "
+                    "desired long (%f)" % desired_long
+                )
+
+            if (current_long > desired_long):
+                self.progress(
+                    "Success: Copter traveled far enough east whilst traveling to "
+                    "WP 19 that we are likely flying a WP Arc"
+                )
+                break
+
+        self.wait_disarmed()
 
     # enter RTL mode and wait for the vehicle to disarm
     def do_RTL(self, distance_min=None, check_alt=True, distance_max=10, timeout=250, quiet=False):
@@ -4481,12 +4529,16 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.wait_climbrate(-speed_ms-1, -speed_ms+1, minimum_duration=minimum_duration)
         self.do_RTL()
 
-    def fly_mission(self, filename, strict=True):
+    def load_and_start_mission(self, filename, strict=True):
         num_wp = self.load_mission(filename, strict=strict)
         self.set_parameter("AUTO_OPTIONS", 3)
         self.change_mode('AUTO')
         self.wait_ready_to_arm()
         self.arm_vehicle()
+        return num_wp
+
+    def fly_mission(self, filename, strict=True):
+        num_wp = self.load_and_start_mission(filename, strict)
         self.wait_waypoint(num_wp-1, num_wp-1)
         self.wait_disarmed()
 
@@ -5287,6 +5339,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             dist = self.distance_to_local_position((x, y, -z_up))
             if dist < 1:
                 self.progress(f"Reach distance ({dist})")
+                self.progress("endpos=%s" % str(startpos))
                 break
 
     def test_guided_local_position_target(self, x, y, z_up):
@@ -9939,6 +9992,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             I2CDriverToTest("maxbotixi2cxl", 2),
             I2CDriverToTest("terarangeri2c", 14, rngfnd_addr=0x31),
             I2CDriverToTest("lightware_legacy16bit", 7, rngfnd_addr=0x66),
+            I2CDriverToTest("tfs20l", 46, rngfnd_addr=0x10),
+            I2CDriverToTest("TFMiniPlus", 25, rngfnd_addr=0x09),
         ]
         while len(i2c_drivers):
             do_drivers = i2c_drivers[0:9]
@@ -9956,37 +10011,101 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.reboot_sitl()
             self.fly_rangefinder_drivers_fly([x.name for x in do_drivers])
 
-    def RangeFinderDriversMaxAlt(self):
+    def RangeFinderDriversMaxAlt_FlyDriver(self,
+                                           name : str,
+                                           rngfnd_type : int,
+                                           simname : str,
+                                           maxalt : float,
+                                           sqalt : float | None = None,
+                                           sq_at_sqalt : float | None = None,
+                                           expected_statustext : str | None = None,
+                                           ):
         '''test max-height behaviour'''
         # lightwareserial goes to 130m when out of range
+        self.progress(f"Flying {name}")
         self.set_parameters({
             "SERIAL4_PROTOCOL": 9,
-            "RNGFND1_TYPE": 8,
+            "RNGFND1_TYPE": rngfnd_type,
             "WPNAV_SPEED_UP": 1000,  # cm/s
         })
         self.customise_SITL_commandline([
-            "--serial4=sim:lightwareserial",
+            f"--serial4=sim:{simname}",
         ])
+        takeoff_alt = sqalt
+        if sqalt is None:
+            takeoff_alt = maxalt
         self.context_set_message_rate_hz('RANGEFINDER', self.sitl_streamrate())
-        self.takeoff(95, mode='GUIDED', timeout=240, max_err=0.5)
-        self.assert_rangefinder_distance_between(90, 100)
+        self.takeoff(takeoff_alt, mode='GUIDED', timeout=240, max_err=0.5)
+        self.assert_rangefinder_distance_between(takeoff_alt-5, takeoff_alt+5)
 
-        self.wait_rangefinder_distance(90, 100)
+        self.wait_rangefinder_distance(takeoff_alt-5, takeoff_alt+5)
 
         rf_bit = mavutil.mavlink.MAV_SYS_STATUS_SENSOR_LASER_POSITION
 
         self.assert_sensor_state(rf_bit, present=True, enabled=True, healthy=True)
-        self.assert_distance_sensor_quality(100)
+        if sq_at_sqalt is not None:
+            self.assert_distance_sensor_quality(sq_at_sqalt)
 
         self.progress("Moving higher to be out of max rangefinder range")
-        self.fly_guided_move_local(0, 0, 150)
+        self.fly_guided_move_local(0, 0, takeoff_alt + 50)
 
         # sensor remains healthy even out-of-range
         self.assert_sensor_state(rf_bit, present=True, enabled=True, healthy=True)
 
         self.assert_distance_sensor_quality(1)
 
-        self.do_RTL()
+        self.progress("Test behaviour above 655.35 metres (UINT16_MAX cm)")
+        self.context_push()
+        self.context_collect('STATUSTEXT')
+#        self.send_debug_trap()
+        self.fly_guided_move_local(0, 0, 700)
+        self.assert_sensor_state(rf_bit, present=True, enabled=True, healthy=True)
+        self.assert_distance_sensor_quality(1)
+        if expected_statustext is not None:
+            self.wait_statustext(expected_statustext, check_context=True)
+        self.context_pop()
+
+        # life's too short for soft landings:
+        self.disarm_vehicle(force=True)
+
+    def RangeFinderDriversMaxAlt_LightwareSerial(self) -> None:
+        '''test max-height behaviour - LightwareSerial'''
+        self.RangeFinderDriversMaxAlt_FlyDriver(
+            name="LightwareSerial",
+            rngfnd_type=8,
+            simname='lightwareserial',
+            maxalt=100,
+            sqalt=95,
+            sq_at_sqalt=100,
+            expected_statustext=None,
+        )
+
+    def RangeFinderDriversMaxAlt_AinsteinLRD1(self) -> None:
+        '''test max-height behaviour - Ainstein LRD1 - pre v19.0.0 firmware'''
+        self.context_collect('STATUSTEXT')
+        self.RangeFinderDriversMaxAlt_FlyDriver(
+            name="Ainstein-LR-D1",
+            rngfnd_type=42,
+            simname='ainsteinlrd1',
+            maxalt=500,
+            sqalt=495,
+            sq_at_sqalt=39,
+            expected_statustext='Altitude reading overflow',
+        )
+        self.wait_text("Rangefinder: Temperature alert", check_context=True)
+
+    def RangeFinderDriversMaxAlt_AinsteinLRD1_v19(self) -> None:
+        '''test max-height behaviour - Ainstein LRD1 - v19.0.0 firmware'''
+        self.context_collect('STATUSTEXT')
+        self.RangeFinderDriversMaxAlt_FlyDriver(
+            name="Ainstein-LR-D1-v19",
+            rngfnd_type=42,
+            simname='ainsteinlrd1_v19',
+            maxalt=500,
+            sqalt=495,
+            sq_at_sqalt=39,
+        )
+        self.wait_text("Rangefinder: MCU Temperature alert", check_context=True)
 
     def RangeFinderDriversLongRange(self):
         '''test rangefinder above 327m'''
@@ -10241,46 +10360,36 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
     def AltEstimation(self):
         '''Test that Alt Estimation is mandatory for ALT_HOLD'''
-        self.context_push()
-        ex = None
+        # disable barometer so there is no altitude source
+        self.set_parameters({
+            "SIM_BARO_DISABLE": 1,
+            "SIM_BAR2_DISABLE": 1,
+        })
+
+        self.wait_gps_disable(position_vertical=True)
+
+        # turn off arming checks (mandatory arming checks will still be run)
+        self.set_parameter("ARMING_CHECK", 0)
+
+        # delay 12 sec to allow EKF to lose altitude estimate
+        self.delay_sim_time(12)
+
+        self.change_mode("ALT_HOLD")
+        self.assert_prearm_failure("Need Alt Estimate")
+
+        # arm vehicle in stabilize to bypass barometer pre-arm checks
+        self.change_mode("STABILIZE")
+        self.arm_vehicle()
+        self.set_rc(3, 1700)
         try:
-            # disable barometer so there is no altitude source
-            self.set_parameters({
-                "SIM_BARO_DISABLE": 1,
-                "SIM_BARO2_DISABL": 1,
-            })
+            self.change_mode("ALT_HOLD", timeout=10)
+        except AutoTestTimeoutException:
+            self.progress("PASS not able to set mode without Position : %s" % "ALT_HOLD")
 
-            self.wait_gps_disable(position_vertical=True)
-
-            # turn off arming checks (mandatory arming checks will still be run)
-            self.set_parameter("ARMING_CHECK", 0)
-
-            # delay 12 sec to allow EKF to lose altitude estimate
-            self.delay_sim_time(12)
-
-            self.change_mode("ALT_HOLD")
-            self.assert_prearm_failure("Need Alt Estimate")
-
-            # force arm vehicle in stabilize to bypass barometer pre-arm checks
-            self.change_mode("STABILIZE")
-            self.arm_vehicle()
-            self.set_rc(3, 1700)
-            try:
-                self.change_mode("ALT_HOLD", timeout=10)
-            except AutoTestTimeoutException:
-                self.progress("PASS not able to set mode without Position : %s" % "ALT_HOLD")
-
-            # check that mode change to ALT_HOLD has failed (it should)
-            if self.mode_is("ALT_HOLD"):
-                raise NotAchievedException("Changed to ALT_HOLD with no altitude estimate")
-
-        except Exception as e:
-            self.print_exception_caught(e)
-            ex = e
-        self.context_pop()
+        # check that mode change to ALT_HOLD has failed (it should)
+        if self.mode_is("ALT_HOLD"):
+            raise NotAchievedException("Changed to ALT_HOLD with no altitude estimate")
         self.disarm_vehicle(force=True)
-        if ex is not None:
-            raise ex
 
     def EKFSource(self):
         '''Check EKF Source Prearms work'''
@@ -10530,6 +10639,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
         # ensure that the blended solution is always about half-way
         # between the two GPSs:
+        passes = 0
         current_ts = None
         while True:
             m = current_log_file.recv_match(type='GPS')
@@ -10553,8 +10663,9 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
                     if error > epsilon:
                         raise NotAchievedException("Blended diverged")
                 current_ts = None
+                passes += 1
 
-        if len(measurements) != 3:
+        if passes == 0:
             raise NotAchievedException("Did not see three GPS measurements!")
 
     def GPSWeightedBlending(self):
@@ -11332,6 +11443,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.check_attitudes_match()
             self.delay_sim_time(1)
 
+        self.do_RTL()
         self.context_pop()
         self.reboot_sitl()
 
@@ -12072,6 +12184,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
              self.ThrottleFailsafePassthrough,
              self.GCSFailsafe,
              self.CustomController,
+             self.WPArcs,
         ])
         return ret
 
@@ -12171,7 +12284,9 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
              self.RangeFinderDrivers,
              self.FlyRangeFinderMAVlink,
              self.FlyRangeFinderSITL,
-             self.RangeFinderDriversMaxAlt,
+             self.RangeFinderDriversMaxAlt_LightwareSerial,
+             self.RangeFinderDriversMaxAlt_AinsteinLRD1,
+             self.RangeFinderDriversMaxAlt_AinsteinLRD1_v19,
              self.RangeFinderDriversLongRange,
              self.RangeFinderSITLLongRange,
              self.MaxBotixI2CXL,
@@ -14917,11 +15032,9 @@ return update, 1000
     def disabled_tests(self):
         return {
             "Parachute": "See https://github.com/ArduPilot/ardupilot/issues/4702",
-            "AltEstimation": "See https://github.com/ArduPilot/ardupilot/issues/15191",
             "GroundEffectCompensation_takeOffExpected": "Flapping",
             "GroundEffectCompensation_touchDownExpected": "Flapping",
             "FlyMissionTwice": "See https://github.com/ArduPilot/ardupilot/pull/18561",
-            "GPSForYawCompassLearn": "Vehicle currently crashed in spectacular fashion",
             "CompassMot": "Causes an arithmetic exception in the EKF",
             "SMART_RTL_EnterLeave": "Causes a panic",
             "SMART_RTL_Repeat": "Currently fails due to issue with loop detection",

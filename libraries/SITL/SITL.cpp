@@ -332,7 +332,20 @@ const AP_Param::GroupInfo SIM::var_info2[] = {
     // @User: Advanced
     AP_GROUPINFO("WOW_PIN",     25, SIM,  wow_pin, -1),
 
-    // vibration frequencies on each axis
+    // @Param: VIB_FREQ_X
+    // @DisplayName: Vibration frequency
+    // @Description: Frequency of vibration applied to IMU readings in SITL
+    // @Units: Hz
+
+    // @Param: VIB_FREQ_Y
+    // @DisplayName: Vibration frequency
+    // @Description: Frequency of vibration applied to IMU readings in SITL
+    // @Units: Hz
+
+    // @Param: VIB_FREQ_Z
+    // @DisplayName: Vibration frequency
+    // @Description: Frequency of vibration applied to IMU readings in SITL
+    // @Units: Hz
     AP_GROUPINFO("VIB_FREQ",   26, SIM,  vibe_freq, 0),
 
     // @Group: PARA_
@@ -533,7 +546,9 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @Description: Scenario for thermalling simulation, for soaring
     AP_GROUPINFO("THML_SCENARI",  12, SIM,  thermal_scenario, 0),
 
-    // Buyoancy for submarines
+    // @Param{Sub}: BUOYANCY
+    // @DisplayName: Buoyancy
+    // @Description: Buyoancy for submarines
     AP_GROUPINFO_FRAME("BUOYANCY", 15, SIM, buoyancy, 1, AP_PARAM_FRAME_SUB),
 
     // @Param: RATE_HZ
@@ -745,6 +760,12 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
     // @Description: Scaling factor for simulated vibration from motors
     // @User: Advanced
     AP_GROUPINFO("MAG_RND",        1, SIM,  mag_noise,   0),
+    // @Param: MAG_MOT
+    // @DisplayName: Motor magnetic interference
+    // @Description: Simulates distortion of magnetometer readings caused by motor current
+    // @Units: mGauss/A
+    // @User: Advanced
+    // @Vector3Parameter: 1
     AP_GROUPINFO("MAG_MOT",        2, SIM,  mag_mot, 0),
     // @Param: MAG_DELAY
     // @DisplayName: Mag measurement delay
@@ -753,6 +774,12 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
     // @User: Advanced
     AP_GROUPINFO("MAG_DELAY",      3, SIM,  mag_delay, 0),
     AP_GROUPINFO("MAG1_OFS",        4, SIM,  mag_ofs[0], 0),
+    // @Param: MAG_ALY
+    // @DisplayName: NED anomaly vector at ground level
+    // @Description: Simulates localized magnetic field distortions at ground level that decays with altitude.
+    // @Units: mGauss
+    // @User: Advanced
+    // @Vector3Parameter: 1
     AP_GROUPINFO("MAG_ALY",        5, SIM,  mag_anomaly_ned, 0),
     // @Param: MAG_ALY_HGT
     // @DisplayName: Magnetic anomaly height
@@ -760,7 +787,35 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
     // @Units: m
     // @User: Advanced
     AP_GROUPINFO("MAG_ALY_HGT",    6, SIM,  mag_anomaly_hgt, 1.0f),
+    // @Param: MAG1_DIA_X
+    // @DisplayName: Magnetometer soft-iron diagonal X component
+    // @Description: DIA_X in the magnetometer soft-iron calibration matrix: [[DIA_X, ODI_X, ODI_Y], [ODI_X, DIA_Y, ODI_Z], [ODI_Y, ODI_Z, DIA_Z]]
+    // @User: Advanced
+
+    // @Param: MAG1_DIA_Y
+    // @DisplayName: Magnetometer soft-iron diagonal Y component
+    // @Description: DIA_Y in the magnetometer soft-iron calibration matrix: [[DIA_X, ODI_X, ODI_Y], [ODI_X, DIA_Y, ODI_Z], [ODI_Y, ODI_Z, DIA_Z]]
+    // @User: Advanced
+
+    // @Param: MAG1_DIA_Z
+    // @DisplayName: Magnetometer soft-iron diagonal Z component
+    // @Description: DIA_Z in the magnetometer soft-iron calibration matrix: [[DIA_X, ODI_X, ODI_Y], [ODI_X, DIA_Y, ODI_Z], [ODI_Y, ODI_Z, DIA_Z]]
+    // @User: Advanced
     AP_GROUPINFO("MAG1_DIA",        7, SIM,  mag_diag[0], 0),
+    // @Param: MAG1_ODI_X
+    // @DisplayName: Magnetometer soft-iron off-diagonal X component
+    // @Description: ODI_X in the magnetometer soft-iron calibration matrix: [[DIA_X, ODI_X, ODI_Y], [ODI_X, DIA_Y, ODI_Z], [ODI_Y, ODI_Z, DIA_Z]]
+    // @User: Advanced
+
+    // @Param: MAG1_ODI_Y
+    // @DisplayName: Magnetometer soft-iron off-diagonal Y component
+    // @Description: ODI_Y in the magnetometer soft-iron calibration matrix: [[DIA_X, ODI_X, ODI_Y], [ODI_X, DIA_Y, ODI_Z], [ODI_Y, ODI_Z, DIA_Z]]
+    // @User: Advanced
+
+    // @Param: MAG1_ODI_Z
+    // @DisplayName: Magnetometer soft-iron off-diagonal Z component
+    // @Description: ODI_Z in the magnetometer soft-iron calibration matrix: [[DIA_X, ODI_X, ODI_Y], [ODI_X, DIA_Y, ODI_Z], [ODI_Y, ODI_Z, DIA_Z]]
+    // @User: Advanced
     AP_GROUPINFO("MAG1_ODI",        8, SIM,  mag_offdiag[0], 0),
     // @Param: MAG1_ORIENT
     // @DisplayName: MAG1 Orientation
@@ -832,7 +887,23 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
     AP_GROUPINFO("MAG1_FAIL",     26, SIM,  mag_fail[0], 0),
 #if HAL_COMPASS_MAX_SENSORS > 1
     AP_GROUPINFO("MAG2_OFS",      19, SIM,  mag_ofs[1], 0),
+    // @Param: MAG2_DIA_X
+    // @CopyFieldsFrom: SIM_MAG1_DIA_X
+
+    // @Param: MAG2_DIA_Y
+    // @CopyFieldsFrom: SIM_MAG1_DIA_Y
+
+    // @Param: MAG2_DIA_Z
+    // @CopyFieldsFrom: SIM_MAG1_DIA_Z
     AP_GROUPINFO("MAG2_DIA",      20, SIM,  mag_diag[1], 0),
+    // @Param: MAG2_ODI_X
+    // @CopyFieldsFrom: SIM_MAG1_ODI_X
+
+    // @Param: MAG2_ODI_Y
+    // @CopyFieldsFrom: SIM_MAG1_ODI_Y
+
+    // @Param: MAG2_ODI_Z
+    // @CopyFieldsFrom: SIM_MAG1_ODI_Z
     AP_GROUPINFO("MAG2_ODI",      21, SIM,  mag_offdiag[1], 0),
     // @Param: MAG2_ORIENT
     // @DisplayName: MAG2 Orientation
@@ -853,7 +924,23 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
 #endif
 #if HAL_COMPASS_MAX_SENSORS > 2
     AP_GROUPINFO("MAG3_OFS",      23, SIM,  mag_ofs[2], 0),
+    // @Param: MAG3_DIA_X
+    // @CopyFieldsFrom: SIM_MAG1_DIA_X
+
+    // @Param: MAG3_DIA_Y
+    // @CopyFieldsFrom: SIM_MAG1_DIA_Y
+
+    // @Param: MAG3_DIA_Z
+    // @CopyFieldsFrom: SIM_MAG1_DIA_Z
     AP_GROUPINFO("MAG3_DIA",      24, SIM,  mag_diag[2], 0),
+    // @Param: MAG3_ODI_X
+    // @CopyFieldsFrom: SIM_MAG1_ODI_X
+
+    // @Param: MAG3_ODI_Y
+    // @CopyFieldsFrom: SIM_MAG1_ODI_Y
+
+    // @Param: MAG3_ODI_Z
+    // @CopyFieldsFrom: SIM_MAG1_ODI_Z
     AP_GROUPINFO("MAG3_ODI",      25, SIM,  mag_offdiag[2], 0),
     // @Param: MAG3_FAIL
     // @DisplayName: MAG3 Failure
@@ -1262,17 +1349,217 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
 
     // the IMUT parameters must be last due to the enable parameters
 #if HAL_INS_TEMPERATURE_CAL_ENABLE
+
+    // @Param: IMUT1_ENABLE
+    // @DisplayName: Enable simulated temperature disturbance for sensor data
+    // @Description: Enable the injection of temperature disturbance to the accelerometer and gyroscope data to simulate temperature calibration
+    // @Values: 0:Disable,1:Enabled, 2: Learn Calibration
+    // @User: Advanced
+
+    // @Param: IMUT1_ACC1
+    // @DisplayName: Applied simulated acceleration to accelerometer
+    // @Description: This is the applied simulated acceleration to the 1st accelerometer
+    // @User: Advanced
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT1_ACC2
+    // @DisplayName: Applied simulated acceleration to accelerometer
+    // @Description: This is the applied simulated acceleration to the 2nd accelerometer
+    // @User: Advanced
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT1_ACC3
+    // @DisplayName: Applied simulated acceleration to accelerometer
+    // @Description: This is the applied simulated acceleration to the 3rd accelerometer
+    // @User: Advanced
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT1_GYR1
+    // @DisplayName: Applied simulated angular rate to gyroscope
+    // @Description: This is the applied simulated angular rate to the 1st gyroscope
+    // @User: Advanced
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT1_GYR2
+    // @DisplayName: Applied simulated angular rate to gyroscope
+    // @Description: This is the applied simulated angular rate to the 2nd gyroscope
+    // @User: Advanced
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT1_GYR3
+    // @DisplayName: Applied simulated angular rate to gyroscope
+    // @Description: This is the applied simulated angular rate to the 3rd gyroscope
+    // @User: Advanced
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT1_TMAX
+    // @DisplayName: Simulated temperature calibration max
+    // @Description: The maximum simulated temperature that the calibration is valid for. This must be at least 10 degrees above TMIN for calibration
+    // @Units: degC
+    // @Range: -70 80
+    // @User: Advanced
+
+    // @Param: IMUT1_TMIN
+    // @DisplayName: Simulated temperature calibration min  
+    // @Description: The minimum simulated temperature that the calibration is valid for
+    // @Units: degC
+    // @Range: -70 80
+    // @User: Advanced
     AP_SUBGROUPINFO(imu_tcal[0], "IMUT1_", 61, SIM, AP_InertialSensor_TCal),
 #if INS_MAX_INSTANCES > 1
+
+    // @Param: IMUT2_ENABLE
+    // @CopyFieldsFrom: SIM_IMUT1_ENABLE
+    // @DisplayName: Enable simulated temperature disturbance for sensor data
+
+    // @Param: IMUT2_ACC1
+    // @CopyFieldsFrom: SIM_IMUT1_ACC1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT2_ACC2
+    // @CopyFieldsFrom: SIM_IMUT1_ACC2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT2_ACC3
+    // @CopyFieldsFrom: SIM_IMUT1_ACC3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT2_GYR1
+    // @CopyFieldsFrom: SIM_IMUT1_GYR1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT2_GYR2
+    // @CopyFieldsFrom: SIM_IMUT1_GYR2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT2_GYR3
+    // @CopyFieldsFrom: SIM_IMUT1_GYR3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT2_TMAX
+    // @CopyFieldsFrom: SIM_IMUT1_TMAX
+    // @DisplayName: Simulated temperature calibration max
+
+    // @Param: IMUT2_TMIN
+    // @CopyFieldsFrom: SIM_IMUT1_TMIN
+    // @DisplayName: Simulated temperature calibration min
     AP_SUBGROUPINFO(imu_tcal[1], "IMUT2_", 62, SIM, AP_InertialSensor_TCal),
 #endif
 #if INS_MAX_INSTANCES > 2
+
+    // @Param: IMUT3_ENABLE
+    // @CopyFieldsFrom: SIM_IMUT1_ENABLE
+    // @DisplayName: Enable simulated temperature disturbance for sensor data
+
+    // @Param: IMUT3_ACC1
+    // @CopyFieldsFrom: SIM_IMUT1_ACC1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT3_ACC2
+    // @CopyFieldsFrom: SIM_IMUT1_ACC2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT3_ACC3
+    // @CopyFieldsFrom: SIM_IMUT1_ACC3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT3_GYR1
+    // @CopyFieldsFrom: SIM_IMUT1_GYR1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT3_GYR2
+    // @CopyFieldsFrom: SIM_IMUT1_GYR2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT3_GYR3
+    // @CopyFieldsFrom: SIM_IMUT1_GYR3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT3_TMAX
+    // @CopyFieldsFrom: SIM_IMUT1_TMAX
+    // @DisplayName: Simulated temperature calibration max
+
+    // @Param: IMUT3_TMIN
+    // @CopyFieldsFrom: SIM_IMUT1_TMIN
+    // @DisplayName: Simulated temperature calibration min
     AP_SUBGROUPINFO(imu_tcal[2], "IMUT3_", 63, SIM, AP_InertialSensor_TCal),
 #endif
 #if INS_MAX_INSTANCES > 3
+
+    // @Param: IMUT4_ENABLE
+    // @CopyFieldsFrom: SIM_IMUT1_ENABLE
+    // @DisplayName: Enable simulated temperature disturbance for sensor data
+
+    // @Param: IMUT4_ACC1
+    // @CopyFieldsFrom: SIM_IMUT1_ACC1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT4_ACC2
+    // @CopyFieldsFrom: SIM_IMUT1_ACC2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT4_ACC3
+    // @CopyFieldsFrom: SIM_IMUT1_ACC3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT4_GYR1
+    // @CopyFieldsFrom: SIM_IMUT1_GYR1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT4_GYR2
+    // @CopyFieldsFrom: SIM_IMUT1_GYR2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT4_GYR3
+    // @CopyFieldsFrom: SIM_IMUT1_GYR3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT4_TMAX
+    // @CopyFieldsFrom: SIM_IMUT1_TMAX
+    // @DisplayName: Simulated temperature calibration max
+
+    // @Param: IMUT4_TMIN
+    // @CopyFieldsFrom: SIM_IMUT1_TMIN
+    // @DisplayName: Simulated temperature calibration min 
     AP_SUBGROUPINFO(imu_tcal[3], "IMUT4_", 60, SIM, AP_InertialSensor_TCal),
 #endif
 #if INS_MAX_INSTANCES > 4
+
+    // @Param: IMUT5_ENABLE
+    // @CopyFieldsFrom: SIM_IMUT1_ENABLE
+    // @DisplayName: Enable simulated temperature disturbance for sensor data
+
+    // @Param: IMUT5_ACC1
+    // @CopyFieldsFrom: SIM_IMUT1_ACC1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT5_ACC2
+    // @CopyFieldsFrom: SIM_IMUT1_ACC2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT5_ACC3
+    // @CopyFieldsFrom: SIM_IMUT1_ACC3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT5_GYR1
+    // @CopyFieldsFrom: SIM_IMUT1_GYR1
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT5_GYR2
+    // @CopyFieldsFrom: SIM_IMUT1_GYR2
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT5_GYR3
+    // @CopyFieldsFrom: SIM_IMUT1_GYR3
+    // @Vector3Parameter: 1
+
+    // @Param: IMUT5_TMAX
+    // @CopyFieldsFrom: SIM_IMUT1_TMAX
+    // @DisplayName: Simulated temperature calibration max
+
+    // @Param: IMUT5_TMIN
+    // @CopyFieldsFrom: SIM_IMUT1_TMIN
+    // @DisplayName: Simulated temperature calibration min 
     AP_SUBGROUPINFO(imu_tcal[4], "IMUT5_", 59, SIM, AP_InertialSensor_TCal),
 #endif
 #endif  // HAL_INS_TEMPERATURE_CAL_ENABLE
