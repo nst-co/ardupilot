@@ -434,9 +434,6 @@ public:
 
     // manual Throttle Rate
     AP_Float manual_steering_rate;
-
-    // FS Radio timeout trigger time
-    AP_Float fs_radio_timeout;
 };
 
 extern const AP_Param::Info var_info[];
