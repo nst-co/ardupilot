@@ -3750,8 +3750,13 @@ function ahrs:earth_to_body(vector) end
 ---@return Vector3f_ud
 function ahrs:get_vibration() end
 
--- Return the estimated airspeed of the vehicle if available
+-- Return the Equivalent Air Speed of the vehicle if available
 ---@return number|nil -- airspeed in meters / second if available
+function ahrs:airspeed_EAS() end
+
+-- Return the Equivalent Air Speed of the vehicle if available
+---@return number|nil -- airspeed in meters / second if available
+---@deprecated -- airspeed_EAS
 function ahrs:airspeed_estimate() end
 
 -- desc
@@ -4306,10 +4311,26 @@ function crsf:add_menu(name) end
 ---| '2' # PARAMETER WRITE
 function crsf:get_menu_event(events) end
 
+-- peek pending CRSF menu event and associated data
+---@return integer -- number of pending events in the queue
+---@return integer -- parameter id of the event
+---@return string -- binary encoded response payload
+---@return integer -- bitmask of triggered events
+---| '1' # PARAMETER READ
+---| '2' # PARAMETER WRITE
+function crsf:peek_menu_event() end
+
+-- pop a pending event from the queue and add it to the queue of responses that need sending
+function crsf:pop_menu_event() end
+
 -- send a CRSF parameter request response
 ---@param data string -- binary encoded response payload
 ---@return boolean -- true if the repsonse was successfully sent, false otherwise
 function crsf:send_write_response(data) end
+
+-- send a generic CRSF parameter request response
+---@return boolean -- true if the repsonse was successfully sent, false otherwise
+function crsf:send_response() end
 
 -- handle for DroneCAN message operations
 ---@class DroneCAN_Handle_ud
