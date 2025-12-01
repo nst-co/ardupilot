@@ -105,6 +105,9 @@ public:
     float get_nav_elapsed_time() const { return _current_time; }
     float get_nav_self_time_error() const { return _self_time_error; }
     float get_nav_remote_time_error() const { return _remote_time_error; }
+    float get_nav_des_speed() const { return _des_speed; }
+    float get_nav_lookahead_des_speed() const { return _lookahead_des_speed; }
+    float get_nav_travelled_ratio() const { return _travelled_ratio; }
 
     // calculate stopping location using current position and attitude controller provided maximum deceleration
     // returns true on success, false on failure
@@ -226,6 +229,9 @@ protected:
     float _self_time_error;
     float _remote_time_error;
     float _prev_pid_error_diff;
+    float _des_speed;
+	float _lookahead_des_speed;
+	float _travelled_ratio;
 
     // main outputs from navigation library
     float _desired_speed_limited;   // desired speed (above) but accel/decel limited and reduced to keep vehicle within _overshoot of line

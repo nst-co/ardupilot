@@ -107,6 +107,9 @@ public:
     virtual float get_elapsed_time() const { return 0.0f; }
     virtual float get_self_time_error() const { return 0.0f; }
     virtual float get_remote_time_error() const { return 0.0f; }
+    virtual float get_des_speed() const { return 0.0f; }
+    virtual float get_lookahead_des_speed() const { return 0.0f; }
+    virtual float get_travelled_ratio() const { return 0.0f; }
 
     // return desired location (used in Guided, Auto, RTL, etc)
     // return true on success, false if there is no valid destination
@@ -279,6 +282,9 @@ public:
     float get_elapsed_time() const override;
     float get_self_time_error() const override;
     float get_remote_time_error() const override;
+    float get_des_speed() const override;
+    float get_lookahead_des_speed() const override;
+    float get_travelled_ratio() const override;
 
     // get or set desired location
     bool get_desired_location(Location& destination) const override WARN_IF_UNUSED;

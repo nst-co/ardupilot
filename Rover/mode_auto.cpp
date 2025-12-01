@@ -321,6 +321,36 @@ float ModeAuto::get_remote_time_error() const
     }
 }
 
+float ModeAuto::get_des_speed() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_des_speed();
+    default:
+        return 0.0f;
+    }
+}
+
+float ModeAuto::get_lookahead_des_speed() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_lookahead_des_speed();
+    default:
+        return 0.0f;
+    }
+}
+
+float ModeAuto::get_travelled_ratio() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_travelled_ratio();
+    default:
+        return 0.0f;
+    }
+}
+
 // get desired location
 bool ModeAuto::get_desired_location(Location& destination) const
 {
@@ -914,7 +944,7 @@ bool ModeAuto::verify_nav_wp(const AP_Mission::Mission_Command& cmd)
         previously_reached_wp = true;
 
         // reset acceleration settings
-        g2.wp_nav.reset_acceleration_target();
+        // g2.wp_nav.reset_acceleration_target();
 
         // check if we are loitering at this waypoint - the message sent to the GCS is different
         if (loiter_duration > 0) {
@@ -1076,15 +1106,22 @@ void ModeAuto::do_change_speed(const AP_Mission::Mission_Command& cmd)
     // set speed for active mode
     if(cmd.content.speed.speed_type <= 1)
     {
-        if (set_desired_speed(cmd.content.speed.target_ms)) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(cmd.content.speed.target_ms));
+        float target_ms = float(cmd.content.speed.target_ms) / 100;
+        if (set_desired_speed(target_ms)) {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(target_ms));
         }
     } else if (cmd.content.speed.speed_type == 10) {
-        if (set_desired_speed(cmd.content.speed.target_ms)) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(cmd.content.speed.target_ms));
+        float target_ms = float(cmd.content.speed.target_ms) / 100;
+        float throttle_pct = float(cmd.content.speed.throttle_pct) / 1000;
+        if(cmd.index <= 2) {
+            set_desired_speed(0.1f);
+            set_desired_speed(target_ms);
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "first speed: %.1f m/s", static_cast<double>(target_ms));
+        } else if (set_desired_speed(target_ms)) {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(target_ms));
         }
-        if (set_desired_acceleration(cmd.content.speed.throttle_pct)) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "accel: %.1f m/s/s", static_cast<double>(cmd.content.speed.throttle_pct));
+        if (set_desired_acceleration(throttle_pct)) {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "accel: %.1f m/s/s", static_cast<double>(throttle_pct));
         }
         if (set_desired_time(cmd.content.speed.expected_elapsed_time)) {
             GCS_SEND_TEXT(MAV_SEVERITY_INFO, "time: %.1f s", static_cast<double>(cmd.content.speed.expected_elapsed_time));

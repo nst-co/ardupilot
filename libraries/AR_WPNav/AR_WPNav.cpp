@@ -188,7 +188,7 @@ void AR_WPNav::init(float speed_max)
         _base_speed_max = _speed_max;
     }
     _base_speed_max = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
-    _base_speed_max_last = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
+    _base_speed_max_last = AR_WPNAV_SPEED_MIN;
     _start_time_ms = 0;
     _current_time = 0.0f;
     _desired_time = 0.0f;
@@ -196,6 +196,9 @@ void AR_WPNav::init(float speed_max)
     _self_time_error = 0.0f;
     _remote_time_error = 0.0f;
     _prev_pid_error_diff = 0.0f;
+    _des_speed = 0.0f;
+    _lookahead_des_speed = 0.0f;
+    _travelled_ratio = 0.0f;
     float atc_accel_max = MIN(_atc.get_accel_max(), _atc.get_decel_max());
     if (!is_positive(atc_accel_max)) {
         // accel_max of zero means no limit so use maximum acceleration
@@ -220,6 +223,7 @@ void AR_WPNav::init(float speed_max)
     _fast_waypoint = false;
     _is_omni = AP::motors_ugv()->is_omni();
     _look_next_waypoint = false;
+    _is_constant_accel = false;
 
     // ensure pivot turns are deactivated
     _pivot.deactivate();
@@ -315,7 +319,7 @@ bool AR_WPNav::set_acceleration_target(float accel)
 {
     // range check target speed
     if (accel > _atc.get_accel_max()) {
-        return false;
+        accel = _atc.get_accel_max();
     }
 
     // float dt = 0.001; // ref void AP_Vehicle::loop()
@@ -824,17 +828,17 @@ void AR_WPNav::update_desired_speed(float dt)
             const float t1 = _desired_time;
             const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
             _current_time = (float)(_last_update_ms - _start_time_ms) / 1000;
-            float des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
-            float travelled_ratio = dist_travelled / total_dist;
-            float expected_time = t0 + (t1 - t0) * travelled_ratio;
+            _des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
+            _travelled_ratio = dist_travelled / total_dist;
+            float expected_time = t0 + (t1 - t0) * _travelled_ratio;
             _self_time_error = _current_time - expected_time; // +:遅れている
             float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
 
-            float lookahead_dist = des_speed * _lookahead_time;
+            float lookahead_dist = _des_speed * _lookahead_time;
             float lookahead_travelled = constrain_float(total_dist + lookahead_dist - _distance_to_destination, 0.0f, total_dist);
-            float lookahead_des_speed = safe_sqrt(sq(v0) + 2.0f * a * lookahead_travelled);
-            lookahead_des_speed += _timedelay_p * pid_error_diff;
-            des_speed_lim = _reversed ? -lookahead_des_speed : lookahead_des_speed;
+            _lookahead_des_speed = safe_sqrt(sq(v0) + 2.0f * a * lookahead_travelled);
+            _lookahead_des_speed += _timedelay_p * pid_error_diff;
+            des_speed_lim = _reversed ? -_lookahead_des_speed : _lookahead_des_speed;
             _prev_pid_error_diff = pid_error_diff;
         } else {
             des_speed_lim = _reversed ? -_base_speed_max : _base_speed_max;

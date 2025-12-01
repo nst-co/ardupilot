@@ -123,6 +123,9 @@ struct PACKED log_Nav_Tuning {
     float elapsed_time;
     float self_time_error;
     float remote_time_error;
+    float des_speed;
+    float lookahead_des_speed;
+    float travelled_ratio;
 };
 
 // Write a navigation tuning packet
@@ -139,7 +142,10 @@ void Rover::Log_Write_Nav_Tuning()
         xtrack_error        : control_mode->crosstrack_error(),
         elapsed_time        : control_mode->get_elapsed_time(),
         self_time_error     : control_mode->get_self_time_error(),
-        remote_time_error   : control_mode->get_remote_time_error()
+        remote_time_error   : control_mode->get_remote_time_error(),
+        des_speed           : control_mode->get_des_speed(),
+        lookahead_des_speed : control_mode->get_lookahead_des_speed(),
+        travelled_ratio     : control_mode->get_travelled_ratio()
     };
     logger.WriteBlock(&pkt, sizeof(pkt));
 }
@@ -286,9 +292,12 @@ const LogStructure Rover::log_structure[] = {
 // @Field: elapsed_time
 // @Field: self_time_error
 // @Field: remote_time_error
+// @Field: des_speed
+// @Field: lookahead_des_speed
+// @Field: travelled_ratio
 
     { LOG_NTUN_MSG, sizeof(log_Nav_Tuning),
-      "NTUN", "QfffHffff", "TimeUS,WpDist,WpBrg,DesYaw,Yaw,XTrack,eTime,SelfErrT,RemErrT", "smhhhmsss", "F000B0000" },
+      "NTUN", "QfffHfffffff", "TimeUS,WpDist,WpBrg,DesYaw,Yaw,XTrack,autoT,errT,VehErrT,V,V2,%", "smhhhmssssss", "F000B0000000" },
     
 // @LoggerMessage: STER
 // @Description: Steering related messages
