@@ -226,6 +226,7 @@ void AR_WPNav::init(float speed_max)
     _is_omni = AP::motors_ugv()->is_omni();
     _look_next_waypoint = false;
     _is_constant_accel = false;
+    _startSpeedFixed = false;
 
     // ensure pivot turns are deactivated
     _pivot.deactivate();
@@ -756,7 +757,7 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
 /*
         // 到達速度の変更：最終地点のみ有効化
         if (_destination.isLastDestination && is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
-            const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination  * _atc.get_decel_max() + sq(_desired_speed_final));
+            const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination * _atc.get_decel_max() + sq(_desired_speed_final));
             des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
         }
 */
@@ -817,7 +818,9 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
 {
     // accelerate desired speed towards max
     float des_speed_lim;
+    bool forward_decel = false;
     if(!_is_constant_accel) {
+        forward_decel = true;
         des_speed_lim = _atc.get_desired_speed_accel_limited(_reversed ? -_base_speed_max : _base_speed_max, dt);
     } else {
         // _origin, _base_speed_max_last
@@ -846,25 +849,30 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
             }
             _self_time_error = _current_time - expected_time; // +:遅れている
             float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
+            pid_error_diff = constrain_float(pid_error_diff, -10, 10);
 
             float lookahead_dist = _des_speed * _lookahead_time;
             float lookahead_travelled = constrain_float(total_dist + lookahead_dist - last_distance_to_destination, 0.0f, total_dist);
             _lookahead_des_speed = safe_sqrt(sq(v0) + 2.0f * a * lookahead_travelled);
-            _lookahead_des_speed += _timedelay_p * pid_error_diff;
+            _lookahead_des_speed = constrain_float(_lookahead_des_speed + _timedelay_p * pid_error_diff, AR_WPNAV_SPEED_MIN, _lookahead_des_speed * 1.5);
             des_speed_lim = _reversed ? -_lookahead_des_speed : _lookahead_des_speed;
             _prev_pid_error_diff = pid_error_diff;
         }else if ((total_dist > -1.0e-6f) || (_desired_time_last < 1.0e-6f)) {
-//            if ((_desired_time_last < 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f) && flag) {
-//                // WPより手前にいる場合（スタート位置）:全体距離修正（関数突入初回のみ）
-//                float dist_rate = _distance_to_destination / total_dist;
-//                total_dist = _distance_to_destination;
-//            }
             const float dist_travelled = constrain_float(total_dist - _distance_to_destination, 0.0f, total_dist);
-            const float v0 = _base_speed_max_last;
+            float v0 = _base_speed_max_last;
             const float v1 = _base_speed_max;
             const float t0 = _desired_time_last;
             // const float t1 = _desired_time;
-            const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
+            float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
+            if ((_desired_time_last < 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f) && !_startSpeedFixed) {
+                // WPより手前にいる場合（スタート位置）:全体距離修正（関数突入初回のみ）
+                // float dist_rate = _distance_to_destination / total_dist;
+                float fix_speed = safe_sqrt(sq(v0) + 2.0f * a * (_distance_to_destination - total_dist));
+                _base_speed_max_last = fix_speed;
+                v0 = fix_speed;
+                a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
+                _startSpeedFixed = true;
+            }
             _current_time = (float)(_last_update_ms - _start_time_ms) / 1000;
             _des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
             _travelled_ratio = dist_travelled / total_dist;
@@ -876,11 +884,12 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
             }
             _self_time_error = _current_time - expected_time; // +:遅れている
             float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
+            pid_error_diff = constrain_float(pid_error_diff, -10, 10);
 
             float lookahead_dist = _des_speed * _lookahead_time;
             float lookahead_travelled = constrain_float(total_dist + lookahead_dist - _distance_to_destination, 0.0f, total_dist);
             _lookahead_des_speed = safe_sqrt(sq(v0) + 2.0f * a * lookahead_travelled);
-            _lookahead_des_speed += _timedelay_p * pid_error_diff;
+            _lookahead_des_speed = constrain_float(_lookahead_des_speed + _timedelay_p * pid_error_diff, AR_WPNAV_SPEED_MIN, _lookahead_des_speed * 2.0);
             des_speed_lim = _reversed ? -_lookahead_des_speed : _lookahead_des_speed;
             _prev_pid_error_diff = pid_error_diff;
         } else {
@@ -914,14 +923,12 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
     apply_speed_min(overshoot_speed_max);
     des_speed_lim = constrain_float(des_speed_lim, -overshoot_speed_max, overshoot_speed_max);
 
-    // limit speed based on distance to waypoint and max acceleration/deceleration
+    // limit speed based on distance to waypoint and max deceleration
     // 到達速度の変更：最終地点のみ有効化
-/*
-    if (_destination.isLastDestination && is_positive(_distance_to_destination ) && is_positive(_atc.get_decel_max())) {
-        const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination  * _atc.get_decel_max() + sq(_desired_speed_final));
+    if (forward_decel && _destination.isLastDestination && is_positive(_distance_to_destination) && is_positive(_atc.get_decel_max())) {
+        const float dist_speed_max = safe_sqrt(2.0f * (_distance_to_destination - _radius_last) * _atc.get_decel_max() * 0.8);
         des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
     }
-*/
 
     _desired_speed_limited = des_speed_lim;
 }

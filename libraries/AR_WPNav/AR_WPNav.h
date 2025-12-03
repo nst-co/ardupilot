@@ -203,6 +203,7 @@ protected:
     bool _is_initialized;
     bool _look_next_waypoint;
     bool _is_constant_accel;
+    bool _startSpeedFixed;
 
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update
