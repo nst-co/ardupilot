@@ -1113,7 +1113,7 @@ void ModeAuto::do_change_speed(const AP_Mission::Mission_Command& cmd)
     } else if (cmd.content.speed.speed_type == 10) {
         float target_ms = float(cmd.content.speed.target_ms) / 100;
         float throttle_pct = float(cmd.content.speed.throttle_pct) / 1000;
-        if(cmd.index <= 2) {
+        if(cmd.index <= 2) { // 1 or 2
             set_desired_speed(0.1f);
             set_desired_speed(target_ms);
             GCS_SEND_TEXT(MAV_SEVERITY_INFO, "first speed: %.1f m/s", static_cast<double>(target_ms));

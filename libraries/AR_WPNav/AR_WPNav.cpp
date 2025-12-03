@@ -189,10 +189,12 @@ void AR_WPNav::init(float speed_max)
     }
     _base_speed_max = MAX(AR_WPNAV_SPEED_MIN, _base_speed_max);
     _base_speed_max_last = AR_WPNAV_SPEED_MIN;
+    _base_speed_max_last2 = AR_WPNAV_SPEED_MIN;
     _start_time_ms = 0;
     _current_time = 0.0f;
     _desired_time = 0.0f;
     _desired_time_last = 0.0f;
+    _desired_time_last2 = 0.0f;
     _self_time_error = 0.0f;
     _remote_time_error = 0.0f;
     _prev_pid_error_diff = 0.0f;
@@ -309,6 +311,7 @@ bool AR_WPNav::set_speed_max(float speed_max)
     }
     */
 
+    _base_speed_max_last2 = _base_speed_max_last;
     _base_speed_max_last = _base_speed_max;
     _base_speed_max = speed_max;
     return true;
@@ -339,6 +342,7 @@ void AR_WPNav::reset_acceleration_target()
 
 bool AR_WPNav::set_desired_time(float time)
 {
+    _desired_time_last2 = _desired_time_last;
     _desired_time_last = _desired_time;
     _desired_time = time;
     return true;
@@ -387,6 +391,7 @@ bool AR_WPNav::set_desired_location(const Location& destination, Location next_d
 
     // set origin to last destination if waypoint controller active
     if (is_active() && _orig_and_dest_valid && _reached_destination) {
+        _last_origin = _origin;
         _origin = _destination;
     } else {
         // otherwise use reasonable stopping point
@@ -561,7 +566,7 @@ bool AR_WPNav::set_desired_location_expect_fast_update(const Location &destinati
     }
 
     // initialise some variables
-    _origin = _destination;
+    _last_origin = _origin = _destination;
     _destination = destination;
     _next_destination = Location();
     _orig_and_dest_valid = true;
@@ -801,14 +806,14 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
         _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, current_speed);
 
         // calculate desired speed
-        update_desired_speed(dt);
+        update_desired_speed(current_loc, dt);
     }
 }
 
 // calculated desired speed(in m/s) based on yaw error and lateral acceleration and/or distance to a waypoint
 // relies on update_distance_and_bearing_to_destination and update_steering being run so these internal members
 // have been updated: _wp_bearing_cd, _cross_track_error, _distance_to_destination
-void AR_WPNav::update_desired_speed(float dt)
+void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
 {
     // accelerate desired speed towards max
     float des_speed_lim;
@@ -818,19 +823,57 @@ void AR_WPNav::update_desired_speed(float dt)
         // _origin, _base_speed_max_last
         // _destination, _base_speed_max
         // a = (v^2 - v0^2) / (2 * total_dist)
-        const float total_dist = _origin.get_distance(_destination);
+        float total_dist = _origin.get_distance(_destination);
         // const float dist_travelled = _origin.get_distance(current_loc);
-        const float dist_travelled = constrain_float(total_dist - _distance_to_destination, 0.0f, total_dist);
-        if (total_dist > 0.0f) {
-            const float v0 = _base_speed_max_last;
-            const float v1 = _base_speed_max;
-            const float t0 = _desired_time_last;
-            const float t1 = _desired_time;
+        if((_desired_time_last >= 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f)) {
+            // WPより手前にいる場合（スタート位置を除く）：前WPを用いて計算
+            total_dist = _last_origin.get_distance(_origin);
+            float last_distance_to_destination = current_loc.get_distance(_origin);
+            const float dist_travelled = constrain_float(total_dist - last_distance_to_destination, 0.0f, total_dist);
+            const float v0 = _base_speed_max_last2;
+            const float v1 = _base_speed_max_last;
+            const float t0 = _desired_time_last2;
+            // const float t1 = _desired_time_last;
             const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
             _current_time = (float)(_last_update_ms - _start_time_ms) / 1000;
             _des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
             _travelled_ratio = dist_travelled / total_dist;
-            float expected_time = t0 + (t1 - t0) * _travelled_ratio;
+            float expected_time;
+            if (fabsf(a) < 1e-6f) {
+                expected_time = dist_travelled / v0 + t0;
+            } else {
+                expected_time = (_des_speed - v0) / a + t0; // t = (v(x) - v0) / a
+            }
+            _self_time_error = _current_time - expected_time; // +:遅れている
+            float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
+
+            float lookahead_dist = _des_speed * _lookahead_time;
+            float lookahead_travelled = constrain_float(total_dist + lookahead_dist - last_distance_to_destination, 0.0f, total_dist);
+            _lookahead_des_speed = safe_sqrt(sq(v0) + 2.0f * a * lookahead_travelled);
+            _lookahead_des_speed += _timedelay_p * pid_error_diff;
+            des_speed_lim = _reversed ? -_lookahead_des_speed : _lookahead_des_speed;
+            _prev_pid_error_diff = pid_error_diff;
+        }else if ((total_dist > -1.0e-6f) || (_desired_time_last < 1.0e-6f)) {
+//            if ((_desired_time_last < 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f) && flag) {
+//                // WPより手前にいる場合（スタート位置）:全体距離修正（関数突入初回のみ）
+//                float dist_rate = _distance_to_destination / total_dist;
+//                total_dist = _distance_to_destination;
+//            }
+            const float dist_travelled = constrain_float(total_dist - _distance_to_destination, 0.0f, total_dist);
+            const float v0 = _base_speed_max_last;
+            const float v1 = _base_speed_max;
+            const float t0 = _desired_time_last;
+            // const float t1 = _desired_time;
+            const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
+            _current_time = (float)(_last_update_ms - _start_time_ms) / 1000;
+            _des_speed = safe_sqrt(sq(v0) + 2.0f * a * dist_travelled);
+            _travelled_ratio = dist_travelled / total_dist;
+            float expected_time;
+            if (fabsf(a) < 1e-6f) {
+                expected_time = dist_travelled / v0 + t0;
+            } else {
+                expected_time = (_des_speed - v0) / a + t0; // t = (v(x) - v0) / a
+            }
             _self_time_error = _current_time - expected_time; // +:遅れている
             float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
 
@@ -968,7 +1011,7 @@ bool AR_WPNav::set_origin_and_destination_to_stopping_point()
     if (!get_stopping_location(stopping_loc)) {
         return false;
     }
-    _origin = _destination = stopping_loc;
+    _last_origin = _origin = _destination = stopping_loc;
     _next_destination = Location();
     _orig_and_dest_valid = true;
     return true;

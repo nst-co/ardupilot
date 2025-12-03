@@ -145,7 +145,7 @@ void Rover::Log_Write_Nav_Tuning()
         remote_time_error   : control_mode->get_remote_time_error(),
         des_speed           : control_mode->get_des_speed(),
         lookahead_des_speed : control_mode->get_lookahead_des_speed(),
-        travelled_ratio     : control_mode->get_travelled_ratio()
+        travelled_ratio     : control_mode->get_travelled_ratio() * 100
     };
     logger.WriteBlock(&pkt, sizeof(pkt));
 }

@@ -139,7 +139,7 @@ protected:
     // calculated desired speed(in m/s) based on yaw error and lateral acceleration and/or distance to a waypoint
     // relies on update_distance_and_bearing_to_destination and update_steering being run so these internal members
     // have been updated: _wp_bearing_cd, _cross_track_error, _distance_to_destination
-    void update_desired_speed(float dt);
+    void update_desired_speed(const Location &current_loc, float dt);
 
     // adjust speed to ensure it does not fall below value held in SPEED_MIN
     // desired_speed should always be positive (or zero)
@@ -207,6 +207,7 @@ protected:
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update
     Location _origin;               // origin Location (vehicle will travel from the origin to the destination)
+    Location _last_origin;
     Location _destination;          // destination Location when in Guided_WP
     Location _next_destination;     // next destination Location when in Guided_WP
     bool _orig_and_dest_valid;      // true if the origin and destination have been set
@@ -219,6 +220,7 @@ protected:
     // speed_max handling
     float _base_speed_max;          // speed max (in m/s) derived from parameters or passed into init
     float _base_speed_max_last;
+    float _base_speed_max_last2;
     float _nudge_speed_max;         // "nudge" speed max (in m/s) normally from the pilot.  has no effect if less than _base_speed_max.  always positive.
     //uint32_t _last_speed_update_ms; // system time that speed_max was last update.  used to ensure speed_max is not update too quickly
     float _base_accel;              // speed acceleration (in m/s/s)
@@ -226,6 +228,7 @@ protected:
     float _current_time;
     float _desired_time;
     float _desired_time_last;
+    float _desired_time_last2;
     float _self_time_error;
     float _remote_time_error;
     float _prev_pid_error_diff;
