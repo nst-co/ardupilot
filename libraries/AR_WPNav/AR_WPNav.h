@@ -108,6 +108,7 @@ public:
     float get_nav_des_speed() const { return _des_speed; }
     float get_nav_lookahead_des_speed() const { return _lookahead_des_speed; }
     float get_nav_travelled_ratio() const { return _travelled_ratio; }
+    float get_nav_start_time() const { return _start_time_ms; }
 
     // calculate stopping location using current position and attitude controller provided maximum deceleration
     // returns true on success, false on failure

@@ -413,6 +413,8 @@ private:
     uint32_t nav_delay_time_max_ms;  // used for delaying the navigation commands
     uint32_t nav_delay_time_start_ms;
 
+    float nav_start_time_ms;
+
 #if AP_SCRIPTING_ENABLED
     // nav_script_time command variables
     struct {
