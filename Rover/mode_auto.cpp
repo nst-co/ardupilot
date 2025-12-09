@@ -98,10 +98,10 @@ void ModeAuto::update()
                 float nav_start_time_ms_now = g2.wp_nav.get_nav_start_time();
                 if((nav_start_time_ms_now != 0.0) && (nav_start_time_ms != nav_start_time_ms_now))
                 {
-                    nav_start_time_ms = nav_start_time_ms_now;
                     uint32_t itow = MAX(rover.gps.get_itow(0), rover.gps.get_itow(1));
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "mission start itow: %lu", itow);
                 }
+                nav_start_time_ms = nav_start_time_ms_now;
             }
             break;
         }
