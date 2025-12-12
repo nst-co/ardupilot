@@ -516,6 +516,22 @@ void Mode::navigate_to_waypoint()
     }
 }
 
+bool Mode::navigate_to_waypoint_validate_heading()
+{
+    Location loc;
+    if (ahrs.get_origin(loc)) {
+        float ahrs_yaw_sensor = ahrs.yaw_sensor;
+        bool reversed = g2.wp_nav.get_reversed();
+        const float wp_bearing_cd = g2.wp_nav.wp_bearing_cd();
+        const float heading_cd = reversed ? wrap_180_cd(ahrs_yaw_sensor + 18000) : ahrs_yaw_sensor;
+        const float wp_yaw_diff = wrap_180_cd(wp_bearing_cd - heading_cd) * 0.01f;
+        if (wp_yaw_diff > 90.0 || wp_yaw_diff < -90.0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // calculate steering output given a turn rate
 // desired turn rate in radians/sec. Positive to the right.
 void Mode::calc_steering_from_turn_rate(float turn_rate, bool reverse)

@@ -95,9 +95,13 @@ void ModeAuto::update()
             // update navigation controller
             if (keep_navigating) {
                 navigate_to_waypoint();
+                if (!navigate_to_waypoint_validate_heading()) {
+                    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "heading error");
+                    start_stop();
+                    stop_vehicle();
+                }
                 float nav_start_time_ms_now = g2.wp_nav.get_nav_start_time();
-                if((nav_start_time_ms_now != 0.0) && (nav_start_time_ms != nav_start_time_ms_now))
-                {
+                if ((nav_start_time_ms_now != 0.0) && (nav_start_time_ms != nav_start_time_ms_now)) {
                     uint32_t itow = MAX(rover.gps.get_itow(0), rover.gps.get_itow(1));
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "mission start itow: %lu", itow);
                 }

@@ -35,6 +35,13 @@ void ModeRTL::update()
     if (!g2.wp_nav.reached_destination()) {
         // update navigation controller
         navigate_to_waypoint();
+        if (!navigate_to_waypoint_validate_heading()) {
+            if (send_notification) {
+                send_notification = false;
+                GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "heading error");
+            }
+            stop_vehicle();
+        }
     } else {
         // send notification
         if (send_notification) {

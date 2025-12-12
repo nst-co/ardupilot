@@ -827,6 +827,7 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
         // _destination, _base_speed_max
         // a = (v^2 - v0^2) / (2 * total_dist)
         float total_dist = _origin.get_distance(_destination);
+        float remote_time_error_fixed = constrain_float(_remote_time_error, -10, 10);
         // const float dist_travelled = _origin.get_distance(current_loc);
         if((_desired_time_last >= 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f)) {
             // WPより手前にいる場合（スタート位置を除く）：前WPを用いて計算
@@ -835,7 +836,7 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
             const float dist_travelled = constrain_float(total_dist - last_distance_to_destination, 0.0f, total_dist);
             const float v0 = _base_speed_max_last2;
             const float v1 = _base_speed_max_last;
-            const float t0 = _desired_time_last2;
+            const float t0 = _desired_time_last2 + remote_time_error_fixed;
             // const float t1 = _desired_time_last;
             const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
             _current_time = (float)(_last_update_ms - _start_time_ms) / 1000;
@@ -848,8 +849,8 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
                 expected_time = (_des_speed - v0) / a + t0; // t = (v(x) - v0) / a
             }
             _self_time_error = _current_time - expected_time; // +:遅れている
-            float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
-            pid_error_diff = constrain_float(pid_error_diff, -10, 10);
+            // float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
+            float pid_error_diff = constrain_float(_self_time_error, -10, 10);
 
             float lookahead_dist = _des_speed * _lookahead_time;
             float lookahead_travelled = constrain_float(total_dist + lookahead_dist - last_distance_to_destination, 0.0f, total_dist);
@@ -861,7 +862,7 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
             const float dist_travelled = constrain_float(total_dist - _distance_to_destination, 0.0f, total_dist);
             float v0 = _base_speed_max_last;
             const float v1 = _base_speed_max;
-            const float t0 = _desired_time_last;
+            const float t0 = _desired_time_last + remote_time_error_fixed;
             // const float t1 = _desired_time;
             float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
             if ((_desired_time_last < 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f) && !_startSpeedFixed) {
@@ -883,8 +884,8 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
                 expected_time = (_des_speed - v0) / a + t0; // t = (v(x) - v0) / a
             }
             _self_time_error = _current_time - expected_time; // +:遅れている
-            float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
-            pid_error_diff = constrain_float(pid_error_diff, -10, 10);
+            // float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
+            float pid_error_diff = constrain_float(_self_time_error, -10, 10);
 
             float lookahead_dist = _des_speed * _lookahead_time;
             float lookahead_travelled = constrain_float(total_dist + lookahead_dist - _distance_to_destination, 0.0f, total_dist);
