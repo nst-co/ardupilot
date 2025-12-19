@@ -526,7 +526,7 @@ MAV_RESULT GCS_MAVLINK_Rover::handle_command_int_packet(const mavlink_command_in
                 break;
         }
         if(packet.x == 1) {
-            if (!rover.control_mode->set_remote_time_error(packet.param3)) {
+            if (!rover.control_mode->set_remote_time_error(packet.param3, packet.param4)) {
                 return MAV_RESULT_FAILED;
             }
             return MAV_RESULT_ACCEPTED;

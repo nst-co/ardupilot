@@ -197,6 +197,7 @@ void AR_WPNav::init(float speed_max)
     _desired_time_last2 = 0.0f;
     _self_time_error = 0.0f;
     _remote_time_error = 0.0f;
+    _remote_ratio = 0.0f;
     _prev_pid_error_diff = 0.0f;
     _des_speed = 0.0f;
     _lookahead_des_speed = 0.0f;
@@ -349,9 +350,10 @@ bool AR_WPNav::set_desired_time(float time)
     return true;
 }
 
-bool AR_WPNav::set_remote_time_error(float time)
+bool AR_WPNav::set_remote_time_error(float time, float ratio)
 {
     _remote_time_error = time;
+    _remote_ratio = ratio;
     return true;
 }
 
@@ -927,7 +929,7 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
     // limit speed based on distance to waypoint and max deceleration
     // 到達速度の変更：最終地点のみ有効化
     if (forward_decel && _destination.isLastDestination && is_positive(_distance_to_destination) && is_positive(_atc.get_decel_max())) {
-        const float dist_speed_max = safe_sqrt(2.0f * (_distance_to_destination - _radius_last) * _atc.get_decel_max() * 0.8);
+        const float dist_speed_max = safe_sqrt(2.0f * (_distance_to_destination - _radius_last * 0.5) * _atc.get_decel_max() * 0.8);
         des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
     }
 

@@ -11,7 +11,7 @@ bool ModeAuto::_enter()
     }
 
     // initialise waypoint navigation library
-    nav_start_time_ms = 0.0;
+    nav_start_time_ms = 0;
     g2.wp_nav.init();
 
     // other initialisation
@@ -97,13 +97,13 @@ void ModeAuto::update()
                 navigate_to_waypoint();
                 /*
                 if (!navigate_to_waypoint_validate_heading()) {
-                    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "heading error");
+                    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "Heading error");
                     start_stop();
                     stop_vehicle();
                 }
                 */
-                float nav_start_time_ms_now = g2.wp_nav.get_nav_start_time();
-                if ((nav_start_time_ms_now != 0.0) && (nav_start_time_ms != nav_start_time_ms_now)) {
+                uint32_t nav_start_time_ms_now = g2.wp_nav.get_nav_start_time();
+                if ((nav_start_time_ms_now != 0) && (nav_start_time_ms != nav_start_time_ms_now)) {
                     uint32_t itow = MAX(rover.gps.get_itow(0), rover.gps.get_itow(1));
                     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "mission start itow: %lu", itow);
                 }
@@ -335,6 +335,16 @@ float ModeAuto::get_remote_time_error() const
     }
 }
 
+float ModeAuto::get_remote_ratio() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_remote_ratio();
+    default:
+        return 0.0f;
+    }
+}
+
 float ModeAuto::get_des_speed() const
 {
     switch (_submode) {
@@ -484,12 +494,12 @@ bool ModeAuto::set_desired_time(float time)
     return false;
 }
 
-bool ModeAuto::set_remote_time_error(float time)
+bool ModeAuto::set_remote_time_error(float time, float ratio)
 {
     switch (_submode) {
     case SubMode::WP:
     case SubMode::Stop:
-        return g2.wp_nav.set_remote_time_error(time);
+        return g2.wp_nav.set_remote_time_error(time, ratio);
     default:
         return false;
     }

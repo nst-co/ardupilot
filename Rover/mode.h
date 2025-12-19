@@ -107,6 +107,7 @@ public:
     virtual float get_elapsed_time() const { return 0.0f; }
     virtual float get_self_time_error() const { return 0.0f; }
     virtual float get_remote_time_error() const { return 0.0f; }
+    virtual float get_remote_ratio() const { return 0.0f; }
     virtual float get_des_speed() const { return 0.0f; }
     virtual float get_lookahead_des_speed() const { return 0.0f; }
     virtual float get_travelled_ratio() const { return 0.0f; }
@@ -131,7 +132,7 @@ public:
 
     // set desired acceleration in m/s/s
     virtual bool set_desired_acceleration(float accel) { return false; }
-    virtual bool set_remote_time_error(float time) { return false; }
+    virtual bool set_remote_time_error(float time, float ratio) { return false; }
 
     // execute the mission in reverse (i.e. backing up)
     void set_reversed(bool value);
@@ -283,6 +284,7 @@ public:
     float get_elapsed_time() const override;
     float get_self_time_error() const override;
     float get_remote_time_error() const override;
+    float get_remote_ratio() const override;
     float get_des_speed() const override;
     float get_lookahead_des_speed() const override;
     float get_travelled_ratio() const override;
@@ -299,7 +301,7 @@ public:
     bool set_desired_acceleration(float accel) override;
 
     bool set_desired_time(float time);
-    bool set_remote_time_error(float time) override;
+    bool set_remote_time_error(float time, float ratio) override;
 
     // start RTL (within auto)
     void start_RTL();
@@ -414,7 +416,7 @@ private:
     uint32_t nav_delay_time_max_ms;  // used for delaying the navigation commands
     uint32_t nav_delay_time_start_ms;
 
-    float nav_start_time_ms;
+    uint32_t nav_start_time_ms;
 
 #if AP_SCRIPTING_ENABLED
     // nav_script_time command variables

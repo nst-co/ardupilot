@@ -38,7 +38,7 @@ void ModeRTL::update()
         if (!navigate_to_waypoint_validate_heading()) {
             if (send_notification) {
                 send_notification = false;
-                GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "heading error");
+                GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "Heading error");
             }
             stop_vehicle();
         }

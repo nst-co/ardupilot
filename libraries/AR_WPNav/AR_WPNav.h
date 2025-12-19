@@ -28,7 +28,7 @@ public:
     bool set_acceleration_target(float accel);
     void reset_acceleration_target();
     bool set_desired_time(float time);
-    bool set_remote_time_error(float time);
+    bool set_remote_time_error(float time, float ratio);
 
     // set speed nudge in m/s.  this will have no effect unless nudge_speed_max > speed_max
     // nudge_speed_max should always be positive regardless of whether the vehicle is travelling forward or reversing
@@ -105,10 +105,11 @@ public:
     float get_nav_elapsed_time() const { return _current_time; }
     float get_nav_self_time_error() const { return _self_time_error; }
     float get_nav_remote_time_error() const { return _remote_time_error; }
+    float get_nav_remote_ratio() const { return _remote_ratio; }
     float get_nav_des_speed() const { return _des_speed; }
     float get_nav_lookahead_des_speed() const { return _lookahead_des_speed; }
     float get_nav_travelled_ratio() const { return _travelled_ratio; }
-    float get_nav_start_time() const { return _start_time_ms; }
+    uint32_t get_nav_start_time() const { return _start_time_ms; }
 
     // calculate stopping location using current position and attitude controller provided maximum deceleration
     // returns true on success, false on failure
@@ -233,6 +234,7 @@ protected:
     float _desired_time_last2;
     float _self_time_error;
     float _remote_time_error;
+    float _remote_ratio;
     float _prev_pid_error_diff;
     float _des_speed;
 	float _lookahead_des_speed;
