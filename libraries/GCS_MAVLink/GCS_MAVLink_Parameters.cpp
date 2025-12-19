@@ -272,7 +272,7 @@ static const ap_message STREAM_EXTENDED_STATUS_msgs[] = {
 static const ap_message STREAM_POSITION_msgs[] = {
 #if AP_AHRS_ENABLED
     MSG_LOCATION,
-    MSG_LOCAL_POSITION
+//    MSG_LOCAL_POSITION
 #endif  // AP_AHRS_ENABLED
 };
 
@@ -283,7 +283,7 @@ static const ap_message STREAM_RAW_CONTROLLER_msgs[] = {
 };
 
 static const ap_message STREAM_RC_CHANNELS_msgs[] = {
-    MSG_SERVO_OUTPUT_RAW,
+//    MSG_SERVO_OUTPUT_RAW,
 #if AP_RC_CHANNEL_ENABLED
     MSG_RC_CHANNELS,
 #if AP_MAVLINK_MSG_RC_CHANNELS_RAW_ENABLED
