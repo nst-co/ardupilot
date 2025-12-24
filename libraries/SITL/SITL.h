@@ -59,6 +59,7 @@ class FlightAxis;
 struct sitl_fdm {
     // this is the structure passed between FDM models and the main SITL code
     uint64_t timestamp_us;
+    uint64_t flightaxis_imu_frame_num; // the sitl frame number that should have a corresponding imu sample
     Location home;
     double latitude, longitude; // degrees
     double altitude;  // MSL
@@ -127,6 +128,11 @@ public:
     static SIM *get_singleton() { return _singleton; }
 
     void init() {
+        if (init_done) {
+            return;
+        }
+        init_done = true;
+
         AP_Param::setup_object_defaults(this, var_info);
         AP_Param::setup_object_defaults(this, var_info2);
         AP_Param::setup_object_defaults(this, var_info3);
@@ -149,6 +155,7 @@ public:
             mag_ofs[i].set(Vector3f(5, 13, -18));
         }
     }
+    bool init_done;
 
     enum SITL_RCFail {
         SITL_RCFail_None = 0,

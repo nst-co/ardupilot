@@ -30,76 +30,16 @@ void AP_Mount_Servo::update()
 {
     AP_Mount_Backend::update();
 
-    // change to RC_TARGETING mode if RC input has changed
-    set_rctargeting_on_rcinput_change();
+    update_mnt_target();
 
-    auto mount_mode = get_mode();
-    switch (mount_mode) {
-        // move mount to a "retracted position" or to a position where a fourth servo can retract the entire mount into the fuselage
-        case MAV_MOUNT_MODE_RETRACT: {
-            _angle_bf_output_rad = _params.retract_angles.get() * DEG_TO_RAD;
-            mnt_target.angle_rad.set(_angle_bf_output_rad, false);
-            mnt_target.target_type = MountTargetType::ANGLE;
-            break;
-        }
+    // have our base class call send_target_angles to command the gimbal:
+    send_target_to_gimbal();
+}
 
-        // move mount to a neutral position, typically pointing forward
-        case MAV_MOUNT_MODE_NEUTRAL: {
-            _angle_bf_output_rad = _params.neutral_angles.get() * DEG_TO_RAD;
-            mnt_target.angle_rad.set(_angle_bf_output_rad, false);
-            mnt_target.target_type = MountTargetType::ANGLE;
-            break;
-        }
-
-        // point to the angles given by a mavlink message
-        case MAV_MOUNT_MODE_MAVLINK_TARGETING: {
-            // mavlink targets are stored while handling the incoming message and considered valid
-            break;
-        }
-
-        // RC radio manual angle control, but with stabilization from the AHRS
-        case MAV_MOUNT_MODE_RC_TARGETING:
-            update_mnt_target_from_rc_target();
-            break;
-
-        // point mount to a GPS point given by the mission planner
-        case MAV_MOUNT_MODE_GPS_POINT:
-            if (get_angle_target_to_roi(mnt_target.angle_rad)) {
-                mnt_target.target_type = MountTargetType::ANGLE;
-            }
-            break;
-
-        // point mount to Home location
-        case MAV_MOUNT_MODE_HOME_LOCATION:
-            if (get_angle_target_to_home(mnt_target.angle_rad)) {
-                mnt_target.target_type = MountTargetType::ANGLE;
-            }
-            break;
-
-        // point mount to another vehicle
-        case MAV_MOUNT_MODE_SYSID_TARGET:
-            if (get_angle_target_to_sysid(mnt_target.angle_rad)) {
-                mnt_target.target_type = MountTargetType::ANGLE;
-            }
-            break;
-
-        default:
-            //do nothing
-            break;
-    }
-
-    // send target angles or rates depending on the target type
-    switch (mnt_target.target_type) {
-        case MountTargetType::RATE:
-            update_angle_target_from_rate(mnt_target.rate_rads, mnt_target.angle_rad);
-            FALLTHROUGH;
-        case MountTargetType::ANGLE:
-            // update _angle_bf_output_rad based on angle target
-            if ((mount_mode != MAV_MOUNT_MODE_RETRACT) && (mount_mode != MAV_MOUNT_MODE_NEUTRAL)) {
-                update_angle_outputs(mnt_target.angle_rad);
-            }
-            break;
-    }
+// called by the backend to set the servo angles:
+void AP_Mount_Servo::send_target_angles(const MountAngleTarget& angle_rad)
+{
+    update_angle_outputs(mnt_target.angle_rad);
 
     // write the results to the servos
     move_servo(_roll_idx, degrees(_angle_bf_output_rad.x)*10, _params.roll_angle_min*10, _params.roll_angle_max*10);
@@ -151,7 +91,7 @@ bool AP_Mount_Servo::get_attitude_quaternion(Quaternion& att_quat)
 // private methods
 
 // update body-frame angle outputs from earth-frame angle targets
-void AP_Mount_Servo::update_angle_outputs(const MountTarget& angle_rad)
+void AP_Mount_Servo::update_angle_outputs(const MountAngleTarget& angle_rad)
 {
     const AP_AHRS &ahrs = AP::ahrs();
 
@@ -162,6 +102,15 @@ void AP_Mount_Servo::update_angle_outputs(const MountTarget& angle_rad)
     _angle_bf_output_rad.x = angle_rad.roll;
     _angle_bf_output_rad.y = angle_rad.pitch;
     _angle_bf_output_rad.z = yaw_bf_rad;
+
+    // do no stabilization in retract or neutral:
+    switch (get_mode()) {
+    case MAV_MOUNT_MODE_RETRACT:
+    case MAV_MOUNT_MODE_NEUTRAL:
+        return;
+    case MAV_MOUNT_MODE_MAVLINK_TARGETING...MAV_MOUNT_MODE_ENUM_END:
+        break;
+    }
 
     // this is sufficient for self-stabilising brushless gimbals
     if (!requires_stabilization) {
