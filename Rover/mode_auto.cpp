@@ -482,12 +482,12 @@ bool ModeAuto::set_desired_acceleration(float accel)
     return false;
 }
 
-bool ModeAuto::set_desired_time(float time)
+bool ModeAuto::set_desired_time(float time, float radius)
 {
     switch (_submode) {
     case SubMode::WP:
     case SubMode::Stop:
-        return g2.wp_nav.set_desired_time(time);
+        return g2.wp_nav.set_desired_time(time, radius);
     default:
         return false;
     }
@@ -1137,19 +1137,28 @@ void ModeAuto::do_change_speed(const AP_Mission::Mission_Command& cmd)
     } else if (cmd.content.speed.speed_type == 10) {
         float target_ms = float(cmd.content.speed.target_ms) / 100;
         float throttle_pct = float(cmd.content.speed.throttle_pct) / 1000;
+        float expected_elapsed_time = cmd.content.speed.expected_elapsed_time;
+        float radius = float(cmd.content.speed.radius) / 100;
         if(cmd.index <= 2) { // 1 or 2
             set_desired_speed(0.1f);
             set_desired_speed(target_ms);
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "first speed: %.1f m/s", static_cast<double>(target_ms));
-        } else if (set_desired_speed(target_ms)) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "speed: %.1f m/s", static_cast<double>(target_ms));
+        } else if (!set_desired_speed(target_ms)) {
+            target_ms = -1;
         }
-        if (set_desired_acceleration(throttle_pct)) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "accel: %.1f m/s/s", static_cast<double>(throttle_pct));
+        if (!set_desired_acceleration(throttle_pct)) {
+            throttle_pct = -1;
         }
-        if (set_desired_time(cmd.content.speed.expected_elapsed_time)) {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "time: %.1f s", static_cast<double>(cmd.content.speed.expected_elapsed_time));
+        if (!set_desired_time(expected_elapsed_time, radius)) {
+            expected_elapsed_time = -1;
+            radius = -1;
         }
+
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Mission%u: %.1f m/s %.1f m/s2 %.1f s R: %.1f"
+                , cmd.index
+                , static_cast<double>(target_ms)
+                , static_cast<double>(throttle_pct)
+                , static_cast<double>(expected_elapsed_time)
+                , static_cast<double>(radius));
     }
 }
 

@@ -92,6 +92,7 @@ public:
         uint8_t speed_type;     // 0=airspeed, 1=ground speed
         int16_t target_ms;        // target speed in m/s, -1 means no change
         int16_t throttle_pct;     // throttle as a percentage (i.e. 1 ~ 100), 0 means no change
+        uint16_t radius;
         float expected_elapsed_time;
     };
 

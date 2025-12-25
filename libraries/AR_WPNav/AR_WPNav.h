@@ -27,7 +27,7 @@ public:
     bool set_speed_max(float speed_max);
     bool set_acceleration_target(float accel);
     void reset_acceleration_target();
-    bool set_desired_time(float time);
+    bool set_desired_time(float time, float radius);
     bool set_remote_time_error(float time, float ratio);
 
     // set speed nudge in m/s.  this will have no effect unless nudge_speed_max > speed_max
@@ -232,6 +232,9 @@ protected:
     float _desired_time;
     float _desired_time_last;
     float _desired_time_last2;
+    float _desired_radius;
+    float _desired_radius_last;
+    float _desired_radius_last2;
     float _self_time_error;
     float _remote_time_error;
     float _remote_ratio;

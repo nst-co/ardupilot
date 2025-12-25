@@ -430,7 +430,8 @@ bool AP_Mission::start_command(const Mission_Command& cmd)
     case MAV_CMD_DO_JUMP_TAG:
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Mission: %u %s %u", cmd.index, cmd.type(), (unsigned)cmd.p1);
         break;
-
+    case MAV_CMD_DO_CHANGE_SPEED:
+        break;
     default:
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Mission: %u %s", cmd.index, cmd.type());
         break;
@@ -1226,6 +1227,7 @@ MAV_MISSION_RESULT AP_Mission::mavlink_int_to_mission_cmd(const mavlink_mission_
         cmd.content.speed.target_ms = int(round(packet.param2 * 100));    // target speed in m/s
         cmd.content.speed.throttle_pct = int(round(packet.param3 * 1000)); // throttle as a percentage from 1 ~ 100%
         cmd.content.speed.expected_elapsed_time = packet.param4;
+        cmd.content.speed.radius = packet.x;
         break;
 
     case MAV_CMD_DO_SET_HOME:
@@ -1758,6 +1760,7 @@ bool AP_Mission::mission_cmd_to_mavlink_int(const AP_Mission::Mission_Command& c
         packet.param2 = float(cmd.content.speed.target_ms) / 100;    // speed in m/s
         packet.param3 = float(cmd.content.speed.throttle_pct) / 1000; // throttle as a percentage from 1 ~ 100%
         packet.param4 = cmd.content.speed.expected_elapsed_time;
+        packet.x = cmd.content.speed.radius;
         break;
 
     case MAV_CMD_DO_SET_HOME:                           // MAV ID: 179

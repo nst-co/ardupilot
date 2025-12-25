@@ -195,6 +195,9 @@ void AR_WPNav::init(float speed_max)
     _desired_time = 0.0f;
     _desired_time_last = 0.0f;
     _desired_time_last2 = 0.0f;
+    _desired_radius = 0.0f;
+    _desired_radius_last = 0.0f;
+    _desired_radius_last2 = 0.0f;
     _self_time_error = 0.0f;
     _remote_time_error = 0.0f;
     _remote_ratio = 0.0f;
@@ -342,11 +345,14 @@ void AR_WPNav::reset_acceleration_target()
     _is_constant_accel = false;
 }
 
-bool AR_WPNav::set_desired_time(float time)
+bool AR_WPNav::set_desired_time(float time, float radius)
 {
     _desired_time_last2 = _desired_time_last;
     _desired_time_last = _desired_time;
     _desired_time = time;
+    _desired_radius_last2 = _desired_radius_last;
+    _desired_radius_last = _desired_radius;
+    _desired_radius = radius;
     return true;
 }
 
@@ -888,6 +894,10 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
             _self_time_error = _current_time - expected_time; // +:遅れている
             // float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
             float pid_error_diff = constrain_float(_self_time_error, -10, 10);
+            if(_destination.isLastDestination){
+                // 最終WP:時間誤差無視:位置に対しての速度制御優先
+                pid_error_diff = 0.0;
+            }
 
             float lookahead_dist = _des_speed * _lookahead_time;
             float lookahead_travelled = constrain_float(total_dist + lookahead_dist - _distance_to_destination, 0.0f, total_dist);

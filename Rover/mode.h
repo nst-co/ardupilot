@@ -300,7 +300,7 @@ public:
     // set desired acceleration in m/s
     bool set_desired_acceleration(float accel) override;
 
-    bool set_desired_time(float time);
+    bool set_desired_time(float time, float radius);
     bool set_remote_time_error(float time, float ratio) override;
 
     // start RTL (within auto)
