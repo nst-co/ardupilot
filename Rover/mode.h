@@ -107,6 +107,7 @@ public:
     virtual float get_elapsed_time() const { return 0.0f; }
     virtual float get_self_time_error() const { return 0.0f; }
     virtual float get_remote_time_error() const { return 0.0f; }
+    virtual float get_remote_time_remain() const { return 0.0f; }
     virtual float get_remote_ratio() const { return 0.0f; }
     virtual float get_des_speed() const { return 0.0f; }
     virtual float get_lookahead_des_speed() const { return 0.0f; }
@@ -132,7 +133,7 @@ public:
 
     // set desired acceleration in m/s/s
     virtual bool set_desired_acceleration(float accel) { return false; }
-    virtual bool set_remote_time_error(float time, float ratio) { return false; }
+    virtual bool set_remote_time_error(float error_time, float progress_ratio, float remain_time) { return false; }
 
     // execute the mission in reverse (i.e. backing up)
     void set_reversed(bool value);
@@ -284,6 +285,7 @@ public:
     float get_elapsed_time() const override;
     float get_self_time_error() const override;
     float get_remote_time_error() const override;
+    float get_remote_time_remain() const override;
     float get_remote_ratio() const override;
     float get_des_speed() const override;
     float get_lookahead_des_speed() const override;
@@ -301,7 +303,7 @@ public:
     bool set_desired_acceleration(float accel) override;
 
     bool set_desired_time(float time, float radius);
-    bool set_remote_time_error(float time, float ratio) override;
+    bool set_remote_time_error(float error_time, float progress_ratio, float remain_time) override;
 
     // start RTL (within auto)
     void start_RTL();

@@ -335,6 +335,16 @@ float ModeAuto::get_remote_time_error() const
     }
 }
 
+float ModeAuto::get_remote_time_remain() const
+{
+    switch (_submode) {
+    case SubMode::WP:
+        return g2.wp_nav.get_nav_remote_time_remain();
+    default:
+        return 0.0f;
+    }
+}
+
 float ModeAuto::get_remote_ratio() const
 {
     switch (_submode) {
@@ -494,12 +504,12 @@ bool ModeAuto::set_desired_time(float time, float radius)
     return false;
 }
 
-bool ModeAuto::set_remote_time_error(float time, float ratio)
+bool ModeAuto::set_remote_time_error(float error_time, float progress_ratio, float remain_time)
 {
     switch (_submode) {
     case SubMode::WP:
     case SubMode::Stop:
-        return g2.wp_nav.set_remote_time_error(time, ratio);
+        return g2.wp_nav.set_remote_time_error(error_time, progress_ratio, remain_time);
     default:
         return false;
     }

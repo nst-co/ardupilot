@@ -166,6 +166,15 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("TIMEDELAY_P", 17, AR_WPNav, _timedelay_p, 0),
 
+    // @Param: RTERR_LOCK_T
+    // @DisplayName: Remote Time Error Lock Threshold Second
+    // @Description: Remaining time (seconds) below which the remote time error is locked.
+    // @Units: s
+    // @Range: 0 30
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("RTERR_LOCK_T", 18, AR_WPNav, _remote_time_error_lock_s, 0),
+
     AP_GROUPEND
 };
 
@@ -200,11 +209,13 @@ void AR_WPNav::init(float speed_max)
     _desired_radius_last2 = 0.0f;
     _self_time_error = 0.0f;
     _remote_time_error = 0.0f;
+    _remote_time_remain = 0.0f;
     _remote_ratio = 0.0f;
     _prev_pid_error_diff = 0.0f;
     _des_speed = 0.0f;
     _lookahead_des_speed = 0.0f;
     _travelled_ratio = 0.0f;
+    _remoteTimeErrorFixedValue = 0.0f;
     float atc_accel_max = MIN(_atc.get_accel_max(), _atc.get_decel_max());
     if (!is_positive(atc_accel_max)) {
         // accel_max of zero means no limit so use maximum acceleration
@@ -231,6 +242,7 @@ void AR_WPNav::init(float speed_max)
     _look_next_waypoint = false;
     _is_constant_accel = false;
     _startSpeedFixed = false;
+    _remoteTimeErrorFixed = false;
 
     // ensure pivot turns are deactivated
     _pivot.deactivate();
@@ -356,10 +368,11 @@ bool AR_WPNav::set_desired_time(float time, float radius)
     return true;
 }
 
-bool AR_WPNav::set_remote_time_error(float time, float ratio)
+bool AR_WPNav::set_remote_time_error(float error_time, float progress_ratio, float remain_time)
 {
-    _remote_time_error = time;
-    _remote_ratio = ratio;
+    _remote_time_error = error_time;
+    _remote_time_remain = remain_time;
+    _remote_ratio = progress_ratio;
     return true;
 }
 
@@ -835,16 +848,24 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
         // _destination, _base_speed_max
         // a = (v^2 - v0^2) / (2 * total_dist)
         float total_dist = _origin.get_distance(_destination);
-        float remote_time_error_fixed = constrain_float(_remote_time_error, -10, 10);
+        float remote_time_error_sat = constrain_float(_remote_time_error, -10, 10);
+        if (_remote_time_remain < _remote_time_error_lock_s && _remoteTimeErrorFixed == false) {
+            // 一度でも残り秒数が閾値を下回ったら、_remote_time_errorは更新しない
+            _remoteTimeErrorFixed = true;
+            _remoteTimeErrorFixedValue = remote_time_error_sat;
+        }
+        if (_remoteTimeErrorFixed) {
+            remote_time_error_sat = _remoteTimeErrorFixedValue;
+        }
         // const float dist_travelled = _origin.get_distance(current_loc);
-        if((_desired_time_last >= 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f)) {
+        if ((_desired_time_last >= 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f)) {
             // WPより手前にいる場合（スタート位置を除く）：前WPを用いて計算
             total_dist = _last_origin.get_distance(_origin);
             float last_distance_to_destination = current_loc.get_distance(_origin);
             const float dist_travelled = constrain_float(total_dist - last_distance_to_destination, 0.0f, total_dist);
             const float v0 = _base_speed_max_last2;
             const float v1 = _base_speed_max_last;
-            const float t0 = _desired_time_last2 + remote_time_error_fixed;
+            const float t0 = _desired_time_last2 + remote_time_error_sat;
             // const float t1 = _desired_time_last;
             const float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
             _current_time = (float)(_last_update_ms - _start_time_ms) / 1000;
@@ -866,11 +887,11 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
             _lookahead_des_speed = constrain_float(_lookahead_des_speed + _timedelay_p * pid_error_diff, AR_WPNAV_SPEED_MIN, _lookahead_des_speed * 1.5);
             des_speed_lim = _reversed ? -_lookahead_des_speed : _lookahead_des_speed;
             _prev_pid_error_diff = pid_error_diff;
-        }else if ((total_dist > -1.0e-6f) || (_desired_time_last < 1.0e-6f)) {
+        } else if ((total_dist > -1.0e-6f) || (_desired_time_last < 1.0e-6f)) {
             const float dist_travelled = constrain_float(total_dist - _distance_to_destination, 0.0f, total_dist);
             float v0 = _base_speed_max_last;
             const float v1 = _base_speed_max;
-            const float t0 = _desired_time_last + remote_time_error_fixed;
+            const float t0 = _desired_time_last + remote_time_error_sat;
             // const float t1 = _desired_time;
             float a = (sq(v1) - sq(v0)) / (2.0f * total_dist);
             if ((_desired_time_last < 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f) && !_startSpeedFixed) {

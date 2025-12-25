@@ -28,7 +28,7 @@ public:
     bool set_acceleration_target(float accel);
     void reset_acceleration_target();
     bool set_desired_time(float time, float radius);
-    bool set_remote_time_error(float time, float ratio);
+    bool set_remote_time_error(float error_time, float progress_ratio, float remain_time);
 
     // set speed nudge in m/s.  this will have no effect unless nudge_speed_max > speed_max
     // nudge_speed_max should always be positive regardless of whether the vehicle is travelling forward or reversing
@@ -105,6 +105,7 @@ public:
     float get_nav_elapsed_time() const { return _current_time; }
     float get_nav_self_time_error() const { return _self_time_error; }
     float get_nav_remote_time_error() const { return _remote_time_error; }
+    float get_nav_remote_time_remain() const { return _remote_time_remain; }
     float get_nav_remote_ratio() const { return _remote_ratio; }
     float get_nav_des_speed() const { return _des_speed; }
     float get_nav_lookahead_des_speed() const { return _lookahead_des_speed; }
@@ -180,6 +181,7 @@ protected:
     AP_Float _lookahead_time;       // Time in seconds used to project the current velocity forward to estimate the target velocity at a future position.
     AP_Float _reached_thre_rate;    // Fraction of the waypoint switching threshold distance below which the target is considered reached.
     AP_Float _timedelay_p;
+    AP_Float _remote_time_error_lock_s;
 
     // references
     AR_AttitudeControl& _atc;       // rover attitude control library
@@ -206,6 +208,7 @@ protected:
     bool _look_next_waypoint;
     bool _is_constant_accel;
     bool _startSpeedFixed;
+    bool _remoteTimeErrorFixed;
 
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update
@@ -237,11 +240,13 @@ protected:
     float _desired_radius_last2;
     float _self_time_error;
     float _remote_time_error;
+    float _remote_time_remain;
     float _remote_ratio;
     float _prev_pid_error_diff;
     float _des_speed;
 	float _lookahead_des_speed;
 	float _travelled_ratio;
+	float _remoteTimeErrorFixedValue;
 
     // main outputs from navigation library
     float _desired_speed_limited;   // desired speed (above) but accel/decel limited and reduced to keep vehicle within _overshoot of line
