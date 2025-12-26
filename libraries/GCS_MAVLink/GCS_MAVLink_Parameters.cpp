@@ -238,7 +238,7 @@ static const ap_message STREAM_RAW_SENSORS_msgs[] = {
 };
 
 static const ap_message STREAM_EXTENDED_STATUS_msgs[] = {
-    MSG_SYS_STATUS,
+//    MSG_SYS_STATUS,
 //    MSG_POWER_STATUS,
 #if HAL_WITH_MCU_MONITORING
 //    MSG_MCU_STATUS,
@@ -300,7 +300,7 @@ static const ap_message STREAM_EXTRA1_msgs[] = {
     MSG_SIMSTATE,
 #endif
 #if AP_AHRS_ENABLED
-    MSG_AHRS2,
+//    MSG_AHRS2,
 #endif  // AP_AHRS_ENABLED
 #if AP_RPM_ENABLED
     MSG_RPM,
