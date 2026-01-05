@@ -206,7 +206,6 @@ void AR_WPNav::init(float speed_max)
     _desired_time_last2 = 0.0f;
     _desired_radius = 0.0f;
     _desired_radius_last = 0.0f;
-    _desired_radius_last2 = 0.0f;
     _self_time_error = 0.0f;
     _remote_time_error = 0.0f;
     _remote_time_remain = 0.0f;
@@ -266,7 +265,9 @@ void AR_WPNav::update(float dt)
         _desired_speed_limited = _atc.get_desired_speed_accel_limited(0.0f, dt);
         _desired_lat_accel = 0.0f;
         _desired_turn_rate_rads = 0.0f;
-        _cross_track_error = 0;
+        _cross_track_error = 0.0f;
+        _cross_track_error_i = 0.0f;
+        _bearing_error_cd = 0;
         return;
     }
 
@@ -359,12 +360,11 @@ void AR_WPNav::reset_acceleration_target()
 
 bool AR_WPNav::set_desired_time(float time, float radius)
 {
-    _desired_time_last2 = _desired_time_last;
-    _desired_time_last = _desired_time;
-    _desired_time = time;
-    _desired_radius_last2 = _desired_radius_last;
-    _desired_radius_last = _desired_radius;
-    _desired_radius = radius;
+    _desired_time_last2 = _desired_time_last;       // t-1
+    _desired_time_last = _desired_time;             // t0
+    _desired_time = time;                           // t1
+    _desired_radius_last = _desired_radius;         // r prev
+    _desired_radius = radius;                       // r current
     return true;
 }
 
@@ -813,7 +813,16 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
             }
             _look_next_waypoint = true;
         } else {
-            _nav_controller.update_waypoint(_origin, _destination, _radius_tmp);
+            float total_dist = _origin.get_distance(_destination);
+            float curvature_radius = 0.0;
+            if ((_desired_time_last >= 1.0e-6f) && (total_dist - _distance_to_destination < -1.0e-6f)) {
+                // WPより手前にいる場合（スタート位置を除く）：前WPを用いて計算
+                curvature_radius = _desired_radius_last;
+            } else if ((total_dist > -1.0e-6f) || (_desired_time_last < 1.0e-6f)) {
+                // 現WP
+                curvature_radius = _desired_radius;
+            }
+            _nav_controller.update_waypoint(_origin, _destination, _radius_tmp, curvature_radius);
             _look_next_waypoint = false;
         }
 
@@ -825,6 +834,8 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
             _desired_heading_cd = wrap_360_cd(_desired_heading_cd + 18000);
         }
         _cross_track_error = _nav_controller.crosstrack_error();
+        _cross_track_error_i = _nav_controller.crosstrack_error_integrator();
+        _bearing_error_cd = _nav_controller.bearing_error_cd();
         _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, current_speed);
 
         // calculate desired speed

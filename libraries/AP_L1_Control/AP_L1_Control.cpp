@@ -203,13 +203,33 @@ void AP_L1_Control::_prevent_indecision(float &Nu)
 }
 
 // update L1 control for waypoint navigation
-void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &next_WP, float dist_min)
+void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &next_WP, float dist_min, float curvature_radius)
 {
 
     Location _current_loc;
     float Nu;
     float xtrackVel;
     float ltrackVel;
+    const float R_STRAIGHT = 1.0e6f; // 1,000 km 相当
+    const float R_min = 5.0f;
+    const float R_i_enable = 100.0f; // I項が100%を有効になる半径
+    float R = R_STRAIGHT;
+    if(curvature_radius >= R_min) {
+        R = curvature_radius;
+    }
+    // I項有効率：0.0（急カーブ）～1.0（直線）
+    float i_scale = constrain_float(
+        (R - R_min) / (R_i_enable - R_min),
+        0.0f, 1.0f
+    );
+    // 直前がカーブなら、I項をリセット
+    if (fabsf(_last_curvature_radius - curvature_radius) > FLT_EPSILON) {
+        // 実質「違う」とみなす
+        if (curvature_radius < R_min) {
+            _L1_xtrack_i = 0.0f;
+        }
+        _last_curvature_radius = curvature_radius;
+    }
 
     uint32_t now = AP_HAL::micros();
     float dt = (now - _last_update_waypoint_us) * 1.0e-6f;
@@ -275,6 +295,7 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
 
     // calculate distance to target track, for reporting
     _crosstrack_error = A_air % AB;
+    _bearing_error = 0.0;
 
     // Determine if the aircraft is behind a +-135 degree degree arc centred on WP A
     // and further than L1 distance from WP A. Then use WP A as the L1 reference point
@@ -316,13 +337,19 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         if (_L1_xtrack_i_gain <= 0 || !is_equal(_L1_xtrack_i_gain.get(), _L1_xtrack_i_gain_prev)) {
             _L1_xtrack_i = 0;
             _L1_xtrack_i_gain_prev = _L1_xtrack_i_gain;
-        } else if (fabsf(Nu1) < radians(5)) {
-            _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * dt;
+        } else if (fabsf(Nu1) > radians(8)) {
+            // 急カーブなら、I項をリセット
+            _L1_xtrack_i = 0.0f;
+        } else if (fabsf(Nu1) < radians(5) && i_scale > 0.1f) {
+            _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * i_scale * dt;
 
             // an AHRS_TRIM_X=0.1 will drift to about 0.08 so 0.1 is a good worst-case to clip at
             _L1_xtrack_i = constrain_float(_L1_xtrack_i, -0.1f, 0.1f);
+        } else {
+            // カーブ or 復帰直後 → I項を溜めない
         }
 
+        _bearing_error = Nu1; // for logging
         // to converge to zero we must push Nu1 harder
         Nu1 += _L1_xtrack_i;
 
@@ -341,7 +368,7 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     _WPcircle = false;
     _last_loiter.reached_loiter_target_ms = 0;
 
-    _bearing_error = Nu; // bearing error angle (radians), +ve to left of track
+//    _bearing_error = Nu; // bearing error angle (radians), +ve to left of track
 
     _data_is_stale = false; // status are correctly updated with current waypoint data
 }

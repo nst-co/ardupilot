@@ -49,7 +49,7 @@ public:
     float turn_distance(float wp_radius) const override;
     float turn_distance(float wp_radius, float turn_angle) const override;
     float loiter_radius (const float loiter_radius) const override;
-    void update_waypoint(const class Location &prev_WP, const class Location &next_WP, float dist_min = 0.0f) override;
+    void update_waypoint(const class Location &prev_WP, const class Location &next_WP, float dist_min = 0.0f, float curvature_radius = 0.0f) override;
     void update_loiter(const class Location &center_WP, float radius, int8_t loiter_direction) override;
     void update_heading_hold(int32_t navigation_heading_cd) override;
     void update_level_flight(void) override;
@@ -121,6 +121,7 @@ private:
     float _L1_xtrack_i_gain_prev = 0;
     uint32_t _last_update_waypoint_us;
     bool _data_is_stale = true;
+    float _last_curvature_radius = 0;
 
     AP_Float _loiter_bank_limit;
 

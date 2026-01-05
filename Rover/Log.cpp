@@ -120,6 +120,7 @@ struct PACKED log_Nav_Tuning {
     float nav_bearing;
     uint16_t yaw;
     float xtrack_error;
+    float bearing_error;
     float elapsed_time;
     float self_time_error;
     float remote_time_error;
@@ -142,6 +143,7 @@ void Rover::Log_Write_Nav_Tuning()
         nav_bearing         : control_mode->nav_bearing(),
         yaw                 : (uint16_t)ahrs.yaw_sensor,
         xtrack_error        : control_mode->crosstrack_error(),
+        bearing_error       : control_mode->bearing_error(),
         elapsed_time        : control_mode->get_elapsed_time(),
         self_time_error     : control_mode->get_self_time_error(),
         remote_time_error   : control_mode->get_remote_time_error(),
@@ -149,7 +151,7 @@ void Rover::Log_Write_Nav_Tuning()
         des_speed           : control_mode->get_des_speed(),
         lookahead_des_speed : control_mode->get_lookahead_des_speed(),
         travelled_ratio     : control_mode->get_travelled_ratio() * 100,
-        remote_ratio        : control_mode->get_remote_ratio()
+        remote_ratio        : control_mode->get_remote_ratio() * 100,
     };
     logger.WriteBlock(&pkt, sizeof(pkt));
 }
@@ -293,6 +295,7 @@ const LogStructure Rover::log_structure[] = {
 // @Field: DesYaw: the vehicle's desired heading
 // @Field: Yaw: the vehicle's current heading
 // @Field: XTrack: the vehicle's current distance from the current travel segment
+// @Field: bearing_error
 // @Field: elapsed_time
 // @Field: self_time_error
 // @Field: remote_time_error
@@ -303,7 +306,7 @@ const LogStructure Rover::log_structure[] = {
 // @Field: remote_ratio
 
     { LOG_NTUN_MSG, sizeof(log_Nav_Tuning),
-      "NTUN", "QfffHfffffffff", "TimeUS,WpDist,WpBrg,DesYaw,Yaw,XTrack,T,ErrT,VErrT,VrT,v,v2,%,V%", "smhhhmssssssss", "F000B000000000" },
+      "NTUN", "QfffHffffffffff", "TimeUS,WpDist,WpBrg,DesYaw,Yaw,XTr,bE,T,ErrT,VErrT,VrT,v,v2,%,V%", "smhhhmdssssnn%%", "F000B0000000000" },
     
 // @LoggerMessage: STER
 // @Description: Steering related messages
