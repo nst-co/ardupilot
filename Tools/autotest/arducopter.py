@@ -5900,21 +5900,11 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
     def PayloadPlaceMission(self):
         """Test payload placing in auto."""
-        self.context_push()
-
         self.set_analog_rangefinder_parameters()
         self.set_servo_gripper_parameters()
         self.reboot_sitl()
 
-        self.load_mission("copter_payload_place.txt")
-        if self.mavproxy is not None:
-            self.mavproxy.send('wp list\n')
-
-        self.set_parameter("AUTO_OPTIONS", 3)
-        self.change_mode('AUTO')
-        self.wait_ready_to_arm()
-
-        self.arm_vehicle()
+        num_wp = self.load_and_start_mission("copter_payload_place.txt")
 
         self.wait_text("Gripper load releas(ed|ing)", timeout=90, regex=True)
         dist_limit = 1
@@ -5929,11 +5919,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             raise NotAchievedException("Did not honour target lat/lng (dist=%f want <%f" %
                                        (dist, dist_limit))
 
-        self.wait_disarmed()
-
-        self.context_pop()
-        self.reboot_sitl()
-        self.progress("All done")
+        self.wait_waypoint(num_wp-1, num_wp-1)
+        self.do_RTL()
 
     def PayloadPlaceMissionOpenGripper(self):
         '''test running the mission when the gripper is open'''
@@ -6210,6 +6197,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         return min(max(pitch_angle_deg, PITCH_MIN), PITCH_MAX)
 
     def test_mount_pitch(self, despitch, despitch_tolerance, mount_mode, timeout=10, hold=0, constrained=True):
+        self.set_mount_mode(mount_mode)
         tstart = self.get_sim_time()
         success_start = 0
 
@@ -9321,15 +9309,15 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.customise_SITL_commandline(["--serial5=sim:loweheiser"])
 
         self.set_parameters({
-            "GEN_IDLE_TH": 25,
-            "GEN_IDLE_TH_H": 40,
-            "GEN_RUN_TEMP": 60,
-            "GEN_IDLE_TEMP": 80,
+            "GEN_L_IDLE_TH": 25,
+            "GEN_L_IDLE_TH_H": 40,
+            "GEN_L_RUN_TEMP": 60,
+            "GEN_L_IDLE_TEMP": 80,
         })
 
         self.reboot_sitl()
 
-        self.assert_parameter_value("GEN_IDLE_TH", 25)
+        self.assert_parameter_value("GEN_L_IDLE_TH", 25)
 
         self.delay_sim_time(10)  # so we can actually receive messages...
 
@@ -9624,15 +9612,15 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.customise_SITL_commandline(["--serial5=sim:loweheiser"])
 
         self.set_parameters({
-            "GEN_IDLE_TH": 25,
-            "GEN_IDLE_TH_H": 40,
-            "GEN_RUN_TEMP": 60,
-            "GEN_IDLE_TEMP": 80,
+            "GEN_L_IDLE_TH": 25,
+            "GEN_L_IDLE_TH_H": 40,
+            "GEN_L_RUN_TEMP": 60,
+            "GEN_L_IDLE_TEMP": 80,
         })
 
         self.reboot_sitl()
 
-        self.assert_parameter_value("GEN_IDLE_TH", 25)
+        self.assert_parameter_value("GEN_L_IDLE_TH", 25)
 
         self.delay_sim_time(10)  # so we can actually receive messages...
 
@@ -11142,6 +11130,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         old_onboard_logs = sorted(self.log_list())
         self.BeaconPosition()
         new_onboard_logs = sorted(self.log_list())
+
+        self.reboot_sitl()
 
         log_difference = [x for x in new_onboard_logs if x not in old_onboard_logs]
         return log_difference[1] # index depends on the reboots and ordering thereof in BeaconPosition!

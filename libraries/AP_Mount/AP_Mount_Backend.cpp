@@ -45,14 +45,6 @@ void AP_Mount_Backend::update()
     const bool mount_open = (_mode == MAV_MOUNT_MODE_RETRACT);
     SRV_Channels::move_servo(_open_idx, mount_open, 0, 1);
 
-    // set target rate to zero if we have not received rate command for a while
-    if ((get_mode() == MAV_MOUNT_MODE_MAVLINK_TARGETING) &&
-        (mnt_target.target_type == MountTargetType::RATE) &&
-        (AP_HAL::millis() - mnt_target.last_rate_request_ms > 3000)) {
-        mnt_target.rate_rads.roll = 0;
-        mnt_target.rate_rads.pitch = 0;
-        mnt_target.rate_rads.yaw = 0;
-    }
     // location exists for mode
     Location current_loc;
     switch (_mode) {
@@ -124,9 +116,10 @@ void AP_Mount_Backend::update_mnt_target_from_rc_target()
         mnt_target.target_type = MountTargetType::ANGLE;
 
         // frame locks
-        mnt_target.angle_rad.yaw_is_ef = _yaw_lock;
-        mnt_target.angle_rad.roll_is_ef = _roll_lock;
-        mnt_target.angle_rad.pitch_is_ef = _pitch_lock;
+        bool FPV_option = option_set(Options::FPV_LOCK); //FPV_LOCK forces bodyframe on all axes in RC targeting mode
+        mnt_target.angle_rad.yaw_is_ef = FPV_option ? false : _yaw_lock;
+        mnt_target.angle_rad.roll_is_ef = FPV_option ? false : _roll_lock;
+        mnt_target.angle_rad.pitch_is_ef = FPV_option ? false : _pitch_lock;
 
         // roll angle
         mnt_target.angle_rad.roll = radians(((roll_in + 1.0f) * 0.5f * (_params.roll_angle_max - _params.roll_angle_min) + _params.roll_angle_min));
@@ -149,12 +142,6 @@ void AP_Mount_Backend::update_mnt_target_from_rc_target()
         mnt_target.rate_rads.roll = roll_in * rc_rate_max_rads;
         mnt_target.rate_rads.pitch = pitch_in * rc_rate_max_rads;
         mnt_target.rate_rads.yaw = yaw_in * rc_rate_max_rads;
-    }
-
-    if (option_set(Options::FPV_LOCK)) {
-        _yaw_lock = false;
-        _roll_lock = false;
-        _pitch_lock = false;
     }
 }
 
@@ -867,6 +854,10 @@ uint16_t AP_Mount_Backend::get_gimbal_device_flags() const
         case MountTargetType::ANGLE:
             yaw_lock_state = mnt_target.angle_rad.yaw_is_ef;
             break;
+        case MountTargetType::RETRACTED:
+        case MountTargetType::NEUTRAL:
+            yaw_lock_state = false;  // not locked onto the scenery
+            break;
         }
         break;
     case MAV_MOUNT_MODE_RC_TARGETING:
@@ -884,8 +875,8 @@ uint16_t AP_Mount_Backend::get_gimbal_device_flags() const
         break;
     }
 
-    const uint16_t flags = (get_mode() == MAV_MOUNT_MODE_RETRACT ? GIMBAL_DEVICE_FLAGS_RETRACT : 0) |
-                           (get_mode() == MAV_MOUNT_MODE_NEUTRAL ? GIMBAL_DEVICE_FLAGS_NEUTRAL : 0) |
+    const uint16_t flags = (mnt_target.target_type == MountTargetType::RETRACTED ? GIMBAL_DEVICE_FLAGS_RETRACT : 0) |
+                           (mnt_target.target_type == MountTargetType::NEUTRAL ? GIMBAL_DEVICE_FLAGS_NEUTRAL : 0) |
                            GIMBAL_DEVICE_FLAGS_ROLL_LOCK | // roll angle is always earth-frame
                            GIMBAL_DEVICE_FLAGS_PITCH_LOCK| // pitch angle is always earth-frame, yaw_angle is always body-frame
                            GIMBAL_DEVICE_FLAGS_YAW_IN_VEHICLE_FRAME | // yaw angle is always in vehicle-frame
@@ -928,25 +919,28 @@ void AP_Mount_Backend::update_mnt_target()
     set_rctargeting_on_rcinput_change();
 
     switch (get_mode()) {
-    case MAV_MOUNT_MODE_RETRACT: {
+    case MAV_MOUNT_MODE_RETRACT:
         // move mount to a "retracted" position.  To-Do: remove support and replace with a relaxed mode?
-        const Vector3f &angle_bf_target = _params.retract_angles.get();
-        mnt_target.target_type = MountTargetType::ANGLE;
-        mnt_target.angle_rad.set(angle_bf_target*DEG_TO_RAD, false);
+        mnt_target.target_type = MountTargetType::RETRACTED;
         return;
-    }
 
-    case MAV_MOUNT_MODE_NEUTRAL: {
+    case MAV_MOUNT_MODE_NEUTRAL:
         // move mount to a neutral position, typically pointing forward
-        const Vector3f &angle_bf_target = _params.neutral_angles.get();
-        mnt_target.target_type = MountTargetType::ANGLE;
-        mnt_target.angle_rad.set(angle_bf_target*DEG_TO_RAD, false);
+        mnt_target.target_type = MountTargetType::NEUTRAL;
         return;
-    }
 
     case MAV_MOUNT_MODE_MAVLINK_TARGETING:
         // point to the angles given by a mavlink message
         // mavlink targets are stored while handling the incoming message
+
+        // set target rate to zero if we have not received rate
+        // command for a while
+        if ((mnt_target.target_type == MountTargetType::RATE) &&
+            (AP_HAL::millis() - mnt_target.last_rate_request_ms > 3000)) {
+            mnt_target.rate_rads.roll = 0;
+            mnt_target.rate_rads.pitch = 0;
+            mnt_target.rate_rads.yaw = 0;
+        }
         return;
 
     case MAV_MOUNT_MODE_RC_TARGETING:
@@ -992,6 +986,12 @@ void AP_Mount_Backend::send_target_to_gimbal()
         case MountTargetType::RATE:
             send_target_rates(mnt_target.rate_rads);
             return;
+        case MountTargetType::RETRACTED:
+            send_target_retracted();
+            return;
+        case MountTargetType::NEUTRAL:
+            send_target_neutral();
+            return;
         }
         return;  // should not reach this as all cases return
     }
@@ -1008,6 +1008,26 @@ void AP_Mount_Backend::send_target_to_gimbal()
         if (natively_supports(MountTargetType::ANGLE)) {
             // we integrate the rates into the angle:
             update_angle_target_from_rate(mnt_target.rate_rads, mnt_target.angle_rad);
+            send_target_angles(mnt_target.angle_rad);
+            return;
+        }
+        break;
+    case MountTargetType::RETRACTED:
+        if (natively_supports(MountTargetType::ANGLE)) {
+            // just use the parameter values
+            // we update mnt_target for reporting purposes
+            const Vector3f &angle_bf_target = _params.retract_angles.get();
+            mnt_target.angle_rad.set(angle_bf_target*DEG_TO_RAD, false);
+            send_target_angles(mnt_target.angle_rad);
+            return;
+        }
+        break;
+    case MountTargetType::NEUTRAL:
+        if (natively_supports(MountTargetType::ANGLE)) {
+            // just use the parameter values
+            // we update mnt_target for reporting purposes
+            const Vector3f &angle_bf_target = _params.neutral_angles.get();
+            mnt_target.angle_rad.set(angle_bf_target*DEG_TO_RAD, false);
             send_target_angles(mnt_target.angle_rad);
             return;
         }
