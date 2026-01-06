@@ -44,6 +44,7 @@ public:
 
     float crosstrack_error(void) const override { return _crosstrack_error; }
     float crosstrack_error_integrator(void) const override { return _L1_xtrack_i; }
+    float crosstrack_distance_integrator(void) const override { return _xtrack_i_dist; }
 
     int32_t target_bearing_cd(void) const override;
     float turn_distance(float wp_radius) const override;
@@ -99,6 +100,7 @@ private:
 
     // crosstrack error in meters
     float _crosstrack_error;
+    float _xtrack_i_dist = 0.0f;   // [m·s] crosstrack error Integral
 
     // target bearing in centi-degrees from last update
     int32_t _target_bearing_cd;
@@ -124,6 +126,7 @@ private:
     float _last_curvature_radius = 0;
 
     AP_Float _loiter_bank_limit;
+    AP_Float _xtrack_i_dist_gain;
 
     // remember reached_loiter_target decision
     struct {

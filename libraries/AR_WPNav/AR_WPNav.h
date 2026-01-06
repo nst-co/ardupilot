@@ -79,6 +79,7 @@ public:
     float nav_bearing_cd() const { return _desired_heading_cd; }
     float crosstrack_error() const { return _cross_track_error; }
     float crosstrack_error_integrator(void) const { return _cross_track_error_i; }
+    float crosstrack_distance_integrator(void) const { return _cross_track_dist_i; }
     int32_t bearing_error_cd(void) const { return _bearing_error_cd; }
 
     // get object avoidance adjusted origin. Note: this is not guaranteed to be valid (i.e. _orig_and_dest_valid is not checked)
@@ -258,6 +259,7 @@ protected:
     float _wp_bearing_cd;           // heading to waypoint in centi-degrees
     float _cross_track_error;       // cross track error (in meters).  distance from current position to closest point on line between origin and destination
     float _cross_track_error_i;
+    float _cross_track_dist_i;
     int32_t _bearing_error_cd;
 
     // variables for reporting

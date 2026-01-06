@@ -92,6 +92,8 @@ public:
     virtual float wp_bearing() const;
     virtual float nav_bearing() const;
     virtual float crosstrack_error() const;
+    virtual float crosstrack_error_integrator() const;
+    virtual float crosstrack_distance_integrator() const;
     virtual float bearing_error() const;
     virtual float get_desired_lat_accel() const;
 

@@ -267,6 +267,7 @@ void AR_WPNav::update(float dt)
         _desired_turn_rate_rads = 0.0f;
         _cross_track_error = 0.0f;
         _cross_track_error_i = 0.0f;
+        _cross_track_dist_i = 0.0f;
         _bearing_error_cd = 0;
         return;
     }
@@ -835,6 +836,7 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
         }
         _cross_track_error = _nav_controller.crosstrack_error();
         _cross_track_error_i = _nav_controller.crosstrack_error_integrator();
+        _cross_track_dist_i = _nav_controller.crosstrack_distance_integrator();
         _bearing_error_cd = _nav_controller.bearing_error_cd();
         _desired_turn_rate_rads = _atc.get_turn_rate_from_lat_accel(_desired_lat_accel, current_speed);
 
@@ -971,7 +973,7 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
     // limit speed based on distance to waypoint and max deceleration
     // 到達速度の変更：最終地点のみ有効化
     if (forward_decel && _destination.isLastDestination && is_positive(_distance_to_destination) && is_positive(_atc.get_decel_max())) {
-        const float dist_speed_max = safe_sqrt(2.0f * (_distance_to_destination - _radius_last * 0.5) * _atc.get_decel_max() * 0.8);
+        const float dist_speed_max = safe_sqrt(2.0f * _distance_to_destination * _atc.get_decel_max() * 0.8);
         des_speed_lim = constrain_float(des_speed_lim, -dist_speed_max, dist_speed_max);
     }
 

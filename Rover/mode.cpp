@@ -236,6 +236,22 @@ float Mode::crosstrack_error() const
     return g2.wp_nav.crosstrack_error();
 }
 
+float Mode::crosstrack_error_integrator() const
+{
+    if (!is_autopilot_mode()) {
+        return 0.0f;
+    }
+    return g2.wp_nav.crosstrack_error_integrator();
+}
+
+float Mode::crosstrack_distance_integrator() const
+{
+    if (!is_autopilot_mode()) {
+        return 0.0f;
+    }
+    return g2.wp_nav.crosstrack_distance_integrator();
+}
+
 float Mode::bearing_error() const
 {
     if (!is_autopilot_mode()) {

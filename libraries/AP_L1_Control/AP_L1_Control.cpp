@@ -38,6 +38,14 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("LIM_BANK",   3, AP_L1_Control, _loiter_bank_limit, 0.0f),
 
+    // @Param: KI_DIST
+    // @DisplayName: L1 Crosstrack Distance I Gain
+    // @Description: Low-speed crosstrack distance integral gain to remove steady-state offset.
+    // @Range: 0.0 0.5
+    // @Increment: 0.01
+    // @User: Advanced
+    AP_GROUPINFO("KI_DIST",   4, AP_L1_Control, _xtrack_i_dist_gain, 0.0f),
+
     AP_GROUPEND
 };
 
@@ -222,13 +230,14 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         (R - R_min) / (R_i_enable - R_min),
         0.0f, 1.0f
     );
-    // 直前がカーブなら、I項をリセット
+    // 曲率半径変化時
     if (fabsf(_last_curvature_radius - curvature_radius) > FLT_EPSILON) {
-        // 実質「違う」とみなす
         if (curvature_radius < R_min) {
+            // 直線に変更時：直前がカーブなら、I項をリセット
             _L1_xtrack_i = 0.0f;
         }
         _last_curvature_radius = curvature_radius;
+        _xtrack_i_dist = 0.0f;
     }
 
     uint32_t now = AP_HAL::micros();
@@ -297,6 +306,19 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     _crosstrack_error = A_air % AB;
     _bearing_error = 0.0;
 
+    // Distance I-term for rover
+    const float I_DIST_ENABLE = 1.0f;   // [m] I項を有効にする範囲
+    const float I_DIST_DECAY  = 0.5f;   // [1/s] 積分リーク
+    // _xtrack_i_dist_gain: [1/s] 距離Iゲイン（ラインに乗った後の微ズレ調整）
+    float speed_scale = constrain_float(4.0f / MAX(groundSpeed, 0.5f), 0.0f, 1.0f); // 1.0 : ~4.0以下
+    if (fabsf(_crosstrack_error) < I_DIST_ENABLE) {
+        _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain * speed_scale * dt;
+    }
+    // リーク（必須）
+    _xtrack_i_dist *= expf(-I_DIST_DECAY * dt);
+    // 積分上限（暴走防止）
+    _xtrack_i_dist = constrain_float(_xtrack_i_dist, -1.0f, +1.0f); // ±1m相当
+
     // Determine if the aircraft is behind a +-135 degree degree arc centred on WP A
     // and further than L1 distance from WP A. Then use WP A as the L1 reference point
     // Otherwise do normal L1 guidance
@@ -326,7 +348,8 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         ltrackVel = _groundspeed_vector * AB; // Velocity along track
         float Nu2 = atan2f(xtrackVel,ltrackVel);
         // Calculate Nu1 angle (Angle to L1 reference point)
-        float sine_Nu1 = _crosstrack_error/MAX(_L1_dist, 0.1f);
+        //float sine_Nu1 = _crosstrack_error/MAX(_L1_dist, 0.1f);
+        float sine_Nu1 = (_crosstrack_error + _xtrack_i_dist) / MAX(_L1_dist, 0.1f);
         // Limit sine of Nu1 to provide a controlled track capture angle of 45 deg
         sine_Nu1 = constrain_float(sine_Nu1, -0.7071f, 0.7071f);
         float Nu1 = asinf(sine_Nu1);
@@ -337,6 +360,7 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         if (_L1_xtrack_i_gain <= 0 || !is_equal(_L1_xtrack_i_gain.get(), _L1_xtrack_i_gain_prev)) {
             _L1_xtrack_i = 0;
             _L1_xtrack_i_gain_prev = _L1_xtrack_i_gain;
+            _xtrack_i_dist = 0;
         } else if (fabsf(Nu1) > radians(8)) {
             // 急カーブなら、I項をリセット
             _L1_xtrack_i = 0.0f;
