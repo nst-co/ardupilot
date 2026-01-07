@@ -212,6 +212,7 @@ protected:
     bool _is_constant_accel;
     bool _startSpeedFixed;
     bool _remoteTimeErrorFixed;
+    bool _reached_delay_active;
 
     // variables for navigation
     uint32_t _last_update_ms;       // system time of last call to update
@@ -234,6 +235,7 @@ protected:
     //uint32_t _last_speed_update_ms; // system time that speed_max was last update.  used to ensure speed_max is not update too quickly
     float _base_accel;              // speed acceleration (in m/s/s)
     uint32_t _start_time_ms;
+    uint32_t _reached_delay_start_ms;
     float _current_time;
     float _desired_time;
     float _desired_time_last;

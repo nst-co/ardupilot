@@ -200,6 +200,7 @@ void AR_WPNav::init(float speed_max)
     _base_speed_max_last = AR_WPNAV_SPEED_MIN;
     _base_speed_max_last2 = AR_WPNAV_SPEED_MIN;
     _start_time_ms = 0;
+    _reached_delay_start_ms = 0;
     _current_time = 0.0f;
     _desired_time = 0.0f;
     _desired_time_last = 0.0f;
@@ -242,6 +243,7 @@ void AR_WPNav::init(float speed_max)
     _is_constant_accel = false;
     _startSpeedFixed = false;
     _remoteTimeErrorFixed = false;
+    _reached_delay_active = false;
 
     // ensure pivot turns are deactivated
     _pivot.deactivate();
@@ -302,17 +304,30 @@ void AR_WPNav::update(float dt)
 */
 
     // check if vehicle has reached the destination
-    if(_destination.isLastDestination){
+    if (_destination.isLastDestination) {
         _radius_tmp = _radius_last;
         _overshoot_tmp = _overshoot_l;
-    }else{
+    } else {
         _radius_tmp = _radius;
         _overshoot_tmp = _overshoot;
     }
     const bool near_wp = _distance_to_destination <= _radius_tmp;
     const bool past_wp = current_loc.past_interval_finish_line(_origin, _destination);
     if (!_reached_destination && (near_wp || past_wp)) {
-       _reached_destination = true;
+        float current_speed;
+        _atc.get_forward_speed(current_speed);
+        if (!past_wp && _destination.isLastDestination && (fabs(current_speed) < 1.0f)) {
+            if (!_reached_delay_active) {
+                _reached_delay_active = true;
+                _reached_delay_start_ms = _last_update_ms;
+            } else if (_last_update_ms - _reached_delay_start_ms >= 500) {
+                _reached_destination = true;
+                _reached_delay_active = false;
+            }
+        } else {
+            _reached_destination = true;
+            _reached_delay_active = false;
+        }
     }
 
     // update_steering_and_speed

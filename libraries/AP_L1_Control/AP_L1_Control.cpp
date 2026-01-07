@@ -308,11 +308,12 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
 
     // Distance I-term for rover
     const float I_DIST_ENABLE = 1.0f;   // [m] I項を有効にする範囲
-    const float I_DIST_DECAY  = 0.5f;   // [1/s] 積分リーク
+    const float I_DIST_DECAY  = 0.1f;   // [1/s] 積分リーク
     // _xtrack_i_dist_gain: [1/s] 距離Iゲイン（ラインに乗った後の微ズレ調整）
-    float speed_scale = constrain_float(4.0f / MAX(groundSpeed, 0.5f), 0.0f, 1.0f); // 1.0 : ~4.0以下
+    //float speed_scale = constrain_float(4.0f / MAX(groundSpeed, 0.5f), 0.0f, 1.0f); // 1.0 : ~4.0以下
+    float dist_scale = constrain_float(30.0f / MAX(_L1_dist, 5.0f), 0.0f, 1.0f);
     if (fabsf(_crosstrack_error) < I_DIST_ENABLE) {
-        _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain * speed_scale * dt;
+        _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain * dist_scale * dt;
     }
     // リーク（必須）
     _xtrack_i_dist *= expf(-I_DIST_DECAY * dt);
