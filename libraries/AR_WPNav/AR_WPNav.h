@@ -185,6 +185,7 @@ protected:
     AP_Float _reached_thre_rate;    // Fraction of the waypoint switching threshold distance below which the target is considered reached.
     AP_Float _timedelay_p;
     AP_Float _remote_time_error_lock_s;
+    AP_Float _radius_reverse;
 
     // references
     AR_AttitudeControl& _atc;       // rover attitude control library

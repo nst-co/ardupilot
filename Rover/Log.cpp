@@ -146,6 +146,8 @@ void Rover::Log_Write_Nav_Tuning()
         bearing_error       : control_mode->bearing_error(),
         elapsed_time        : control_mode->get_elapsed_time(),
         self_time_error     : control_mode->get_self_time_error(),
+//        remote_time_error   : control_mode->crosstrack_error_integrator(),
+//        remote_time_remain  : control_mode->crosstrack_distance_integrator(),
         remote_time_error   : control_mode->get_remote_time_error(),
         remote_time_remain  : control_mode->get_remote_time_remain(),
         des_speed           : control_mode->get_des_speed(),

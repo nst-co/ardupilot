@@ -175,6 +175,15 @@ const AP_Param::GroupInfo AR_WPNav::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("RTERR_LOCK_T", 18, AR_WPNav, _remote_time_error_lock_s, 0),
 
+    // @Param: RADIUS_REV
+    // @DisplayName: reverse waypoint radius
+    // @Description: The distance in meters from a waypoint when we consider the waypoint has been reached in reverse mission.
+    // @Units: m
+    // @Range: 0 100
+    // @Increment: 0.1
+    // @User: Standard
+    AP_GROUPINFO("RADIUS_REV", 19, AR_WPNav, _radius_reverse, AR_WPNAV_RADIUS_DEFAULT),
+
     AP_GROUPEND
 };
 
@@ -307,6 +316,9 @@ void AR_WPNav::update(float dt)
     if (_destination.isLastDestination) {
         _radius_tmp = _radius_last;
         _overshoot_tmp = _overshoot_l;
+    } else if (_reversed) {
+        _radius_tmp = _radius_reverse;
+        _overshoot_tmp = _overshoot;
     } else {
         _radius_tmp = _radius;
         _overshoot_tmp = _overshoot;
