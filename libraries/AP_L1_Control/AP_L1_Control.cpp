@@ -38,13 +38,46 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("LIM_BANK",   3, AP_L1_Control, _loiter_bank_limit, 0.0f),
 
-    // @Param: KI_DIST
+    // @Param: KIDIST
     // @DisplayName: L1 Crosstrack Distance I Gain
     // @Description: Low-speed crosstrack distance integral gain to remove steady-state offset.
-    // @Range: 0.0 0.5
+    // @Range: 0.0 1.0
     // @Increment: 0.01
     // @User: Advanced
-    AP_GROUPINFO("KI_DIST",   4, AP_L1_Control, _xtrack_i_dist_gain, 0.0f),
+    AP_GROUPINFO("KIDIST",   4, AP_L1_Control, _xtrack_i_dist_gain, 0.0f),
+
+    // @Param: PERIOD_REV
+    // @DisplayName: L1 control period reverse
+    // @Description: Period in seconds of L1 tracking loop in reverse mission.
+    // @Units: s
+    // @Range: 1 60
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("PERIOD_REV",   5, AP_L1_Control, _L1_period_reverse, 17),
+
+    // @Param: DAMPING
+    // @DisplayName: L1 control damping ratio reverse
+    // @Description: Damping ratio for L1 control in reverse mission.
+    // @Range: 0.6 1.0
+    // @Increment: 0.05
+    // @User: Advanced
+    AP_GROUPINFO("DAMP_REV",   6, AP_L1_Control, _L1_damping_reverse, 0.75f),
+
+    // @Param: XTRACKIREV
+    // @DisplayName: L1 control crosstrack integrator gain reverse
+    // @Description: Crosstrack error integrator gain in reverse mission.
+    // @Range: 0 0.1
+    // @Increment: 0.01
+    // @User: Advanced
+    AP_GROUPINFO("XTRACKIREV",   7, AP_L1_Control, _L1_xtrack_i_gain_reverse, 0.02),
+
+    // @Param: KIDIST_REV
+    // @DisplayName: L1 Crosstrack Distance I Gain
+    // @Description: Low-speed crosstrack distance integral gain to remove steady-state offset.
+    // @Range: 0.0 1.0
+    // @Increment: 0.01
+    // @User: Advanced
+    AP_GROUPINFO("KIDIST_REV",   8, AP_L1_Control, _xtrack_i_dist_gain_reverse, 0.0f),
 
     AP_GROUPEND
 };
@@ -254,6 +287,9 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
 
     // Calculate L1 gain required for specified damping
     float K_L1 = 4.0f * _L1_damping * _L1_damping;
+    if (_reverse) {
+        K_L1 = 4.0f * _L1_damping_reverse * _L1_damping_reverse;
+    }
 
     // Get current position and velocity
     if (_ahrs.get_location(_current_loc) == false) {
@@ -283,7 +319,11 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     // Calculate time varying control parameters
     // Calculate the L1 length required for specified period
     // 0.3183099 = 1/1/pipi
-    _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
+    if (!_reverse) {
+        _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
+    } else {
+        _L1_dist = MAX(0.3183099f * _L1_damping_reverse * _L1_period_reverse * groundSpeed, dist_min);
+    }
 
     // Calculate the NE position of WP B relative to WP A
     Vector2f AB = prev_WP.get_distance_NE(next_WP);
@@ -313,7 +353,11 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     //float speed_scale = constrain_float(4.0f / MAX(groundSpeed, 0.5f), 0.0f, 1.0f); // 1.0 : ~4.0以下
     float dist_scale = constrain_float(30.0f / MAX(_L1_dist, 5.0f), 0.0f, 1.0f);
     if (fabsf(_crosstrack_error) < I_DIST_ENABLE) {
-        _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain * dist_scale * dt;
+        if (!_reverse) {
+            _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain * dist_scale * dt;
+        } else {
+            _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain_reverse * dist_scale * dt;
+        }
     }
     // リーク（必須）
     _xtrack_i_dist *= expf(-I_DIST_DECAY * dt);
@@ -362,11 +406,19 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
             _L1_xtrack_i = 0;
             _L1_xtrack_i_gain_prev = _L1_xtrack_i_gain;
             _xtrack_i_dist = 0;
+        } else if (_L1_xtrack_i_gain_reverse <= 0 || !is_equal(_L1_xtrack_i_gain_reverse.get(), _L1_xtrack_i_gain_reverse_prev)) {
+            _L1_xtrack_i = 0;
+            _L1_xtrack_i_gain_reverse_prev = _L1_xtrack_i_gain_reverse;
+            _xtrack_i_dist = 0;
         } else if (fabsf(Nu1) > radians(8)) {
             // 急カーブなら、I項をリセット
             _L1_xtrack_i = 0.0f;
         } else if (fabsf(Nu1) < radians(5) && i_scale > 0.1f) {
-            _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * i_scale * dt;
+            if (!_reverse) {
+                _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * i_scale * dt;
+            } else {
+                _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain_reverse * i_scale * dt;
+            }
 
             // an AHRS_TRIM_X=0.1 will drift to about 0.08 so 0.1 is a good worst-case to clip at
             _L1_xtrack_i = constrain_float(_L1_xtrack_i, -0.1f, 0.1f);

@@ -107,8 +107,10 @@ private:
 
     // L1 tracking loop period (sec)
     AP_Float _L1_period;
+    AP_Float _L1_period_reverse;
     // L1 tracking loop damping ratio
     AP_Float _L1_damping;
+    AP_Float _L1_damping_reverse;
 
     // previous value of cross-track velocity
     float _last_Nu;
@@ -120,13 +122,16 @@ private:
     // For tuning purposes it's helpful to clear the integrator when it changes so a _prev is used
     float _L1_xtrack_i = 0;
     AP_Float _L1_xtrack_i_gain;
+    AP_Float _L1_xtrack_i_gain_reverse;
     float _L1_xtrack_i_gain_prev = 0;
+    float _L1_xtrack_i_gain_reverse_prev = 0;
     uint32_t _last_update_waypoint_us;
     bool _data_is_stale = true;
     float _last_curvature_radius = 0;
 
     AP_Float _loiter_bank_limit;
     AP_Float _xtrack_i_dist_gain;
+    AP_Float _xtrack_i_dist_gain_reverse;
 
     // remember reached_loiter_target decision
     struct {
