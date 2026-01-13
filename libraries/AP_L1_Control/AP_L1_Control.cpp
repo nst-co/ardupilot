@@ -413,6 +413,7 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         } else if (fabsf(Nu1) > radians(8)) {
             // 急カーブなら、I項をリセット
             _L1_xtrack_i = 0.0f;
+            _xtrack_i_dist = 0;
         } else if (fabsf(Nu1) < radians(5) && i_scale > 0.1f) {
             if (!_reverse) {
                 _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * i_scale * dt;
