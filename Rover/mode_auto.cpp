@@ -16,6 +16,7 @@ bool ModeAuto::_enter()
 
     // other initialisation
     auto_triggered = false;
+    have_remotedata = false;
 
     // clear guided limits
     rover.mode_guided.limit_clear();
@@ -509,6 +510,7 @@ bool ModeAuto::set_remote_time_error(float error_time, float progress_ratio, flo
     switch (_submode) {
     case SubMode::WP:
     case SubMode::Stop:
+        have_remotedata = true;
         return g2.wp_nav.set_remote_time_error(error_time, progress_ratio, remain_time);
     default:
         return false;

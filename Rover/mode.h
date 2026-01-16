@@ -137,6 +137,7 @@ public:
     // set desired acceleration in m/s/s
     virtual bool set_desired_acceleration(float accel) { return false; }
     virtual bool set_remote_time_error(float error_time, float progress_ratio, float remain_time) { return false; }
+    virtual bool have_remote_data() { return false; }
 
     // execute the mission in reverse (i.e. backing up)
     void set_reversed(bool value);
@@ -307,6 +308,7 @@ public:
 
     bool set_desired_time(float time, float radius);
     bool set_remote_time_error(float error_time, float progress_ratio, float remain_time) override;
+    bool have_remote_data() override { return have_remotedata; }
 
     // start RTL (within auto)
     void start_RTL();
@@ -392,6 +394,7 @@ private:
 
     bool waiting_to_start;  // true if waiting for EKF origin before starting mission
     bool auto_triggered;        // true when auto has been triggered to start
+    bool have_remotedata;
 
     // HeadingAndSpeed sub mode variables
     float _desired_speed;   // desired speed in HeadingAndSpeed submode

@@ -134,28 +134,49 @@ struct PACKED log_Nav_Tuning {
 // Write a navigation tuning packet
 void Rover::Log_Write_Nav_Tuning()
 {
-    struct log_Nav_Tuning pkt = {
-        LOG_PACKET_HEADER_INIT(LOG_NTUN_MSG),
-        time_us             : AP_HAL::micros64(),
-        wp_distance         : control_mode->get_distance_to_next_destination(),
-        wp_bearing          : control_mode->wp_bearing(),
-        // nav_bearing         : control_mode->get_distance_to_destination(),
-        nav_bearing         : control_mode->nav_bearing(),
-        yaw                 : (uint16_t)ahrs.yaw_sensor,
-        xtrack_error        : control_mode->crosstrack_error(),
-        bearing_error       : control_mode->bearing_error(),
-        elapsed_time        : control_mode->get_elapsed_time(),
-        self_time_error     : control_mode->get_self_time_error(),
-//        remote_time_error   : control_mode->crosstrack_error_integrator(),
-//        remote_time_remain  : control_mode->crosstrack_distance_integrator(),
-        remote_time_error   : control_mode->get_remote_time_error(),
-        remote_time_remain  : control_mode->get_remote_time_remain(),
-        des_speed           : control_mode->get_des_speed(),
-        lookahead_des_speed : control_mode->get_lookahead_des_speed(),
-        travelled_ratio     : control_mode->get_travelled_ratio() * 100,
-        remote_ratio        : control_mode->get_remote_ratio() * 100,
-    };
-    logger.WriteBlock(&pkt, sizeof(pkt));
+    if(!control_mode->have_remote_data()) {
+        struct log_Nav_Tuning pkt = {
+            LOG_PACKET_HEADER_INIT(LOG_NTUN_MSG),
+            time_us             : AP_HAL::micros64(),
+            wp_distance         : control_mode->get_distance_to_next_destination(),
+            wp_bearing          : control_mode->wp_bearing(),
+            // nav_bearing         : control_mode->get_distance_to_destination(),
+            nav_bearing         : control_mode->nav_bearing(),
+            yaw                 : (uint16_t)ahrs.yaw_sensor,
+            xtrack_error        : control_mode->crosstrack_error(),
+            bearing_error       : control_mode->bearing_error(),
+            elapsed_time        : control_mode->get_elapsed_time(),
+            self_time_error     : control_mode->get_self_time_error(),
+            remote_time_error   : control_mode->crosstrack_error_integrator(),
+            remote_time_remain  : control_mode->crosstrack_distance_integrator(),
+            des_speed           : control_mode->get_des_speed(),
+            lookahead_des_speed : control_mode->get_lookahead_des_speed(),
+            travelled_ratio     : control_mode->get_travelled_ratio() * 100,
+            remote_ratio        : control_mode->get_remote_ratio() * 100,
+        };
+        logger.WriteBlock(&pkt, sizeof(pkt));
+    } else {
+        struct log_Nav_Tuning pkt = {
+            LOG_PACKET_HEADER_INIT(LOG_NTUN_MSG),
+            time_us             : AP_HAL::micros64(),
+            wp_distance         : control_mode->get_distance_to_next_destination(),
+            wp_bearing          : control_mode->wp_bearing(),
+            // nav_bearing         : control_mode->get_distance_to_destination(),
+            nav_bearing         : control_mode->nav_bearing(),
+            yaw                 : (uint16_t)ahrs.yaw_sensor,
+            xtrack_error        : control_mode->crosstrack_error(),
+            bearing_error       : control_mode->bearing_error(),
+            elapsed_time        : control_mode->get_elapsed_time(),
+            self_time_error     : control_mode->get_self_time_error(),
+            remote_time_error   : control_mode->get_remote_time_error(),
+            remote_time_remain  : control_mode->get_remote_time_remain(),
+            des_speed           : control_mode->get_des_speed(),
+            lookahead_des_speed : control_mode->get_lookahead_des_speed(),
+            travelled_ratio     : control_mode->get_travelled_ratio() * 100,
+            remote_ratio        : control_mode->get_remote_ratio() * 100,
+        };
+        logger.WriteBlock(&pkt, sizeof(pkt));
+    }
 }
 
 void Rover::Log_Write_Sail()
