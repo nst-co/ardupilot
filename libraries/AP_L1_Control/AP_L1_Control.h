@@ -75,6 +75,17 @@ public:
         _reverse = reverse;
     }
 
+    void set_param_ratio(float rpm_accel, float rpm_decel, float reduction_ratio) override {
+        _reduction_coeff.set(constrain_float(_reduction_coeff, 0.5f, 2.0f));
+        _ref_mot_reduction.set(constrain_float(_ref_mot_reduction, 0.1f, 1.0f));
+        _ref_mot_rpm.set(constrain_int16(_ref_mot_rpm, 1000, 20000));
+        float ref_accel = _ref_mot_rpm * _ref_mot_reduction;
+        float now_accel = rpm_accel * reduction_ratio;
+        float now_decel = rpm_decel * reduction_ratio;
+        _accel_param_change_rate = 1.0 / (now_accel / ref_accel * _reduction_coeff);
+        _decel_param_change_rate = 1.0 / (now_decel / ref_accel * _reduction_coeff);
+    }
+
 private:
     // reference to the AHRS object
     AP_AHRS &_ahrs;
@@ -132,6 +143,11 @@ private:
     AP_Float _loiter_bank_limit;
     AP_Float _xtrack_i_dist_gain;
     AP_Float _xtrack_i_dist_gain_reverse;
+    AP_Int16 _ref_mot_rpm;
+    AP_Float _ref_mot_reduction;
+    AP_Float _reduction_coeff;
+    float _accel_param_change_rate = 1.0;
+    float _decel_param_change_rate = 1.0;
 
     // remember reached_loiter_target decision
     struct {

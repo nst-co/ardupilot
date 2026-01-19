@@ -79,6 +79,30 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("KIDIST_REV",   8, AP_L1_Control, _xtrack_i_dist_gain_reverse, 0.0f),
 
+    // @Param: REF_MOTRPM
+    // @DisplayName: L1 reference motor pwm
+    // @Description: Throttle reference in rpm
+    // @Units: rpm/0.1s
+    // @Range: 1000 20000
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("REF_MOTRPM",   9, AP_L1_Control, _ref_mot_rpm, 3000),
+
+    // @Param: REF_REDUC
+    // @DisplayName: L1 reference motor reduction rate
+    // @Description: L1 reference reduction rate
+    // @Range: 0.1 1.0
+    // @User: Advanced
+    AP_GROUPINFO("REF_REDUC",   10, AP_L1_Control, _ref_mot_reduction, 1.0f),
+
+    // @Param: REDUCCOEFF
+    // @DisplayName: L1 reduction coeff
+    // @Description: reduction coeff of accel/decel rate
+    // @Range: 0.5 2.0
+    // @Increment: 0.01
+    // @User: Advanced
+    AP_GROUPINFO("REDUCCOEFF",   11, AP_L1_Control, _reduction_coeff, 1.0f),
+
     AP_GROUPEND
 };
 
@@ -286,9 +310,9 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     _last_update_waypoint_us = now;
 
     // Calculate L1 gain required for specified damping
-    float K_L1 = 4.0f * _L1_damping * _L1_damping;
+    float K_L1 = 4.0f * _L1_damping * _L1_damping * _accel_param_change_rate * _accel_param_change_rate;
     if (_reverse) {
-        K_L1 = 4.0f * _L1_damping_reverse * _L1_damping_reverse;
+        K_L1 = 4.0f * _L1_damping_reverse * _L1_damping_reverse * _decel_param_change_rate * _decel_param_change_rate;
     }
 
     // Get current position and velocity
@@ -320,9 +344,9 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     // Calculate the L1 length required for specified period
     // 0.3183099 = 1/1/pipi
     if (!_reverse) {
-        _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * groundSpeed, dist_min);
+        _L1_dist = MAX(0.3183099f * _L1_damping * _L1_period * _accel_param_change_rate * _accel_param_change_rate * groundSpeed, dist_min);
     } else {
-        _L1_dist = MAX(0.3183099f * _L1_damping_reverse * _L1_period_reverse * groundSpeed, dist_min);
+        _L1_dist = MAX(0.3183099f * _L1_damping_reverse * _L1_period_reverse * _decel_param_change_rate * _decel_param_change_rate * groundSpeed, dist_min);
     }
 
     // Calculate the NE position of WP B relative to WP A
@@ -354,9 +378,9 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     float dist_scale = constrain_float(30.0f / MAX(_L1_dist, 5.0f), 0.0f, 1.0f);
     if (fabsf(_crosstrack_error) < I_DIST_ENABLE) {
         if (!_reverse) {
-            _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain * dist_scale * dt;
+            _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain * _accel_param_change_rate * dist_scale * dt;
         } else {
-            _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain_reverse * dist_scale * dt;
+            _xtrack_i_dist += _crosstrack_error * _xtrack_i_dist_gain_reverse * _decel_param_change_rate * dist_scale * dt;
         }
     }
     // リーク（必須）
@@ -416,9 +440,9 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
             _xtrack_i_dist = 0;
         } else if (fabsf(Nu1) < radians(5) && i_scale > 0.1f) {
             if (!_reverse) {
-                _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * i_scale * dt;
+                _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * _accel_param_change_rate * i_scale * dt;
             } else {
-                _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain_reverse * i_scale * dt;
+                _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain_reverse * _decel_param_change_rate * i_scale * dt;
             }
 
             // an AHRS_TRIM_X=0.1 will drift to about 0.08 so 0.1 is a good worst-case to clip at

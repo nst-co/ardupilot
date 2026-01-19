@@ -122,6 +122,10 @@ public:
     // set whether manual mode
     void set_is_manual(bool is_manual) { _is_manual = is_manual; }
 
+    int16_t get_rpm_accel() const { return _rpm_accel; }
+    int16_t get_rpm_decel() const { return _rpm_decel; }
+    float get_reduction_ratio() const { return _reduction_ratio; }
+
     // structure for holding motor limit flags
     struct AP_MotorsUGV_limit {
         uint8_t steer_left      : 1; // we have reached the steering controller's left most limit
@@ -227,6 +231,9 @@ private:
     AP_Float _wheelbase;
     AP_Int16 _slew_rate_down;
     AP_Int8 _manual_throttle_max;
+    AP_Int16 _rpm_accel;
+    AP_Int16 _rpm_decel;
+    AP_Float _reduction_ratio;
 
     // internal variables
     float   _steering;  // requested steering as a value from -4500 to +4500

@@ -172,6 +172,31 @@ const AP_Param::GroupInfo AP_MotorsUGV::var_info[] = {
     // @User: Advanced
     AP_GROUPINFO("MANUALTHRMAX", 20, AP_MotorsUGV, _manual_throttle_max, 100),
 
+    // @Param: RPM_ACCEL
+    // @DisplayName: Throttle accel in rpm
+    // @Description: Throttle accel in rpm
+    // @Units: rpm/0.1s
+    // @Range: 1000 20000
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("RPM_ACCEL", 21, AP_MotorsUGV, _rpm_accel, 3000),
+
+    // @Param: RPM_DECEL
+    // @DisplayName: Throttle decel in rpm
+    // @Description: Throttle decel in rpm
+    // @Units: rpm/0.1s
+    // @Range: 1000 20000
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("RPM_DECEL", 22, AP_MotorsUGV, _rpm_decel, 3000),
+
+    // @Param: REDUCRATE
+    // @DisplayName: reduction rate
+    // @Description: reduction rate
+    // @Range: 0.1 1.0
+    // @User: Advanced
+    AP_GROUPINFO("REDUCRATE", 23, AP_MotorsUGV, _reduction_ratio, 1.0f),
+
     AP_GROUPEND
 };
 
@@ -659,6 +684,9 @@ void AP_MotorsUGV::sanity_check_parameters()
     _throttle_min.set(constrain_int16(_throttle_min, 0, MIN(20, _throttle_max)));
     _manual_throttle_max.set(constrain_int16(_manual_throttle_max, 5, 100));
     _vector_angle_max.set(constrain_float(_vector_angle_max, 0.0f, 90.0f));
+    _rpm_accel.set(constrain_int16(_rpm_accel, 1000, 20000));
+    _rpm_decel.set(constrain_int16(_rpm_decel, 1000, 20000));
+    _reduction_ratio.set(constrain_float(_reduction_ratio, 0.1f, 1.0f));
 }
 
 // setup pwm output type

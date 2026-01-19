@@ -827,6 +827,7 @@ void AR_WPNav::update_steering_and_speed(const Location &current_loc, float dt)
         // run L1 controller
         float threshold_dist = (_looknext_k * _base_speed_max) + _looknext_c;
         _nav_controller.set_reverse(_reversed);
+        _nav_controller.set_param_ratio(AP::motors_ugv()->get_rpm_accel(), AP::motors_ugv()->get_rpm_decel(), AP::motors_ugv()->get_reduction_ratio());
 //        _nav_controller.update_waypoint(_reached_destination ? current_loc : _origin, _destination, _radius_tmp);
         if (_reached_destination) {
             _nav_controller.update_waypoint(current_loc, _destination, _radius_tmp);
