@@ -889,8 +889,8 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
         // _destination, _base_speed_max
         // a = (v^2 - v0^2) / (2 * total_dist)
         float total_dist = _origin.get_distance(_destination);
-        float remote_time_error_sat = constrain_float(_remote_time_error, -10, 10);
-        if (_remote_time_remain < _remote_time_error_lock_s && _remoteTimeErrorFixed == false) {
+        float remote_time_error_sat = _remote_time_error; //constrain_float(_remote_time_error, -10, 10);
+        if (_remote_time_remain > 1.0e-6f && _remote_time_remain < _remote_time_error_lock_s && _remoteTimeErrorFixed == false) {
             // 一度でも残り秒数が閾値を下回ったら、_remote_time_errorは更新しない
             _remoteTimeErrorFixed = true;
             _remoteTimeErrorFixedValue = remote_time_error_sat;
@@ -955,7 +955,7 @@ void AR_WPNav::update_desired_speed(const Location &current_loc, float dt)
             }
             _self_time_error = _current_time - expected_time; // +:遅れている
             // float pid_error_diff = _self_time_error - _remote_time_error; // +:selfがより遅れている
-            float pid_error_diff = constrain_float(_self_time_error, -10, 10);
+            float pid_error_diff = constrain_float(_self_time_error, -5, 5);
             if(_destination.isLastDestination){
                 // 最終WP:時間誤差無視:位置に対しての速度制御優先
                 pid_error_diff = 0.0;
